@@ -1,7 +1,15 @@
+import os
+import shutil
+import requests
+import xarray as xr
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+from tempfile import NamedTemporaryFile
 from datetime import datetime, timedelta
 from diskcache import Cache
+from boto3 import client
+from botocore.exceptions import ClientError
 
 
 class GLAD():
@@ -10,12 +18,19 @@ class GLAD():
   '''
 
   _cache = Cache(__name__)
+  _data_cache = '.geomap'
   _base_url = "https://glad.umd.edu/"
   _interval_id_url = f'{_base_url}/users/Potapov/ARD/16d_intervals.xlsx'
   _days_before_update = 20
+  _s3_root_path = 'geomap/glad_ard2'
+  _auth = ('glad', 'ardpas')
   
   def __init__(self):
     self.get_interval_table()
+    self._s3_bucket = os.environ['S3_URL'].split('/')[-1]
+    self._s3 = client('s3', aws_access_key_id=os.environ['S3_ACCESS_KEY'],
+                      aws_secret_access_key=os.environ['S3_SECRET_KEY'],
+                      endpoint_url=os.environ['S3_URL'][:-len(self._s3_bucket)-1])
 
   def get_interval_table(self):
     '''
@@ -60,3 +75,89 @@ class GLAD():
     ids = interval_table.to_numpy().flatten()
     ids = ids[~(np.isnan(ids))].astype(int).tolist()
     return ids
+  
+  def get_download_urls_for_tile(self, tile_id: str):
+    '''
+    Get the valid download URLs for a Tile ID.
+
+    Parameters
+    ----------
+    - tile: str: Tile ID in the format '054W_03S'
+    '''
+    ids = self.get_valid_ids()
+    lat = tile_id.split('_')[1]
+
+    urls = []
+    for id in ids:
+      url = f'{self._base_url}/dataset/glad_ard2/{lat}/{tile_id}/{id}.tif'
+      urls.append(url)
+    return urls
+  
+  def get_image(self, tile_id: str, interval_id: int):
+    '''
+    Get the image for a Tile ID and Interval ID.
+
+    Parameters
+    ----------
+    - tile_id str: Tile ID in the format '054W_03S'
+    - interval_id int: Interval ID
+    '''
+    lat = tile_id.split('_')[1]
+    s3_key = f'{self._s3_root_path}/{tile_id}/raw/{interval_id}.tif'
+
+    try:
+      self._s3.get_object(Bucket=self._s3_bucket, Key=s3_key)
+    
+    except ClientError as e:
+      error_code = e.response['Error']['Code']
+      if error_code != 'NoSuchKey':
+        raise e
+      print(f'Image {tile_id}:{interval_id} not found in S3 ({s3_key}). Downloading from GLAD...')
+      url = f'{self._base_url}/dataset/glad_ard2/{lat}/{tile_id}/{interval_id}.tif'
+      
+      # Download the image
+      print(f'Downloading {url}...')
+      with NamedTemporaryFile() as tmp_file:
+        r = requests.get(url, auth=self._auth, stream=True)
+        total_size = int(r.headers.get("content-length", 0))
+        with tqdm(total=total_size, unit="B", unit_scale=True, mininterval=10) as progress_bar:
+          for bits in r.iter_content(chunk_size=8192):
+            tmp_file.write(bits)
+            progress_bar.update(len(bits))
+      
+        # Upload to S3
+        print(f'Uploading {tile_id}:{interval_id} to S3 ({s3_key}).')
+        self._s3.upload_file(tmp_file.name, self._s3_bucket, s3_key)
+        print(f'Image {tile_id}:{interval_id} uploaded to S3.')
+
+    data_cache_path = os.path.join(self._data_cache, s3_key)
+    if not os.path.exists(data_cache_path):  
+      print(f'Loading image {tile_id}:{interval_id} into cache.')
+      with NamedTemporaryFile() as tmp_file:
+        self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key, Filename=tmp_file.name)
+        ds = xr.open_dataset(tmp_file.name, engine='rasterio')
+        ds = ds.chunks({'band': 1, 'x': 2002, 'y': 2002})
+        ds.to_zarr(data_cache_path, mode='w')
+    else:
+      print(f'Loading image {tile_id}:{interval_id} from cache ({data_cache_path}).')
+
+    return xr.open_zarr(data_cache_path)
+  
+  def delete_image(self, tile_id: str, interval_id: int):
+    '''
+    Delete the image for a Tile ID and Interval ID.
+
+    Parameters
+    ----------
+    - tile_id str: Tile ID in the format '054W_03S'
+    - interval_id int: Interval ID
+    '''
+    s3_key = f'{self._s3_root_path}/{tile_id}/raw/{interval_id}.tif'
+    
+    try:
+      self._s3.delete_object(Bucket=self._s3_bucket, Key=s3_key)
+      data_cache_path = os.path.join(self._data_cache, s3_key)
+      shutil.rmtree(data_cache_path, ignore_errors=True)
+    
+    except Exception as e:
+      pass

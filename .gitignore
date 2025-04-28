@@ -4,9 +4,10 @@
 # Python venv
 base
 
-# Python cache
+# Python
 __pycache__
 .pyc
+cache.db*
 
 # Credentials
 .env

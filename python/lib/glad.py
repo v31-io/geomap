@@ -1,5 +1,4 @@
 import os
-import shutil
 import requests
 import xarray as xr
 import numpy as np
@@ -10,6 +9,8 @@ from datetime import datetime, timedelta
 from diskcache import Cache
 from boto3 import client
 from botocore.exceptions import ClientError
+
+from .db.InvalidImage import InvalidImage
 
 
 class GLAD():
@@ -63,9 +64,14 @@ class GLAD():
                                             
     return self._interval_table, self._interval_dates
   
-  def get_valid_ids(self):
+  def get_valid_ids(self, tile_id: str = None):
     '''
     Get the valid interval IDs from GLAD which are before the current date minus `_days_before_update`.
+
+    Parameters
+    ----------
+    - tile_id str: Tile ID in the format '054W_03S'. If provided then invalid IDs from db will be filtered out.
+                   Invalid ID could be corrupted image or lots of cloud etc.
     '''
     interval_table, interval_dates = self.get_interval_table()
 
@@ -74,6 +80,13 @@ class GLAD():
     interval_table = interval_table[interval_dates < today]
     ids = interval_table.to_numpy().flatten()
     ids = ids[~(np.isnan(ids))].astype(int).tolist()
+    
+    if tile_id is not None:
+      # Filter out invalid IDs
+      q = InvalidImage.select(InvalidImage.interval_id).where(InvalidImage.tile_id == tile_id)
+      invalid_ids = [r.interval_id for r in q]
+      ids = [id for id in ids if id not in invalid_ids]
+
     return ids
   
   def get_download_urls_for_tile(self, tile_id: str):
@@ -82,7 +95,7 @@ class GLAD():
 
     Parameters
     ----------
-    - tile: str: Tile ID in the format '054W_03S'
+    - tile_id str: Tile ID in the format '054W_03S'
     '''
     ids = self.get_valid_ids()
     lat = tile_id.split('_')[1]
@@ -131,17 +144,14 @@ class GLAD():
         print(f'Image {tile_id}:{interval_id} uploaded to S3.')
 
     data_cache_path = os.path.join(self._data_cache, s3_key)
+    os.makedirs(os.path.dirname(data_cache_path), exist_ok=True)
     if not os.path.exists(data_cache_path):  
-      print(f'Loading image {tile_id}:{interval_id} into cache.')
-      with NamedTemporaryFile() as tmp_file:
-        self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key, Filename=tmp_file.name)
-        ds = xr.open_dataset(tmp_file.name, engine='rasterio')
-        ds = ds.chunks({'band': 1, 'x': 2002, 'y': 2002})
-        ds.to_zarr(data_cache_path, mode='w')
+      print(f'Loading image {tile_id}:{interval_id} into cache ({data_cache_path}).')
+      self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key, Filename=data_cache_path)
     else:
       print(f'Loading image {tile_id}:{interval_id} from cache ({data_cache_path}).')
 
-    return xr.open_zarr(data_cache_path)
+    return xr.open_dataset(data_cache_path, engine='rasterio')
   
   def delete_image(self, tile_id: str, interval_id: int):
     '''
@@ -157,7 +167,7 @@ class GLAD():
     try:
       self._s3.delete_object(Bucket=self._s3_bucket, Key=s3_key)
       data_cache_path = os.path.join(self._data_cache, s3_key)
-      shutil.rmtree(data_cache_path, ignore_errors=True)
+      os.remove(data_cache_path)
     
     except Exception as e:
       pass

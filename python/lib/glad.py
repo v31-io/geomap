@@ -129,7 +129,7 @@ class GLAD():
       url = f'{self._base_url}/dataset/glad_ard2/{lat}/{tile_id}/{interval_id}.tif'
       
       # Download the image
-      print(f'Downloading {url}...')
+      print(f'Downloading {url} ...')
       with TemporaryDirectory() as tdir:
         r = requests.get(url, auth=self._auth, stream=True)
         total_size = int(r.headers.get("content-length", 0))

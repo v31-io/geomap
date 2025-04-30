@@ -1,0 +1,12 @@
+name: Testing Placeholder
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test
+    runs-on: [ self-hosted, arc ]
+    steps:
+      - name: Hello World
+        run: echo 'Hello World'

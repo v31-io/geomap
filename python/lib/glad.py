@@ -108,6 +108,10 @@ class GLAD():
     lat = tile_id.split('_')[1]
     s3_key = f'{self._s3_root_path}/{tile_id}/raw/{interval_id}.tif'
 
+    interval_table, interval_dates = self.get_interval_table()
+    idx = np.where(interval_table.to_numpy().flatten() == interval_id)[0][0]
+    date = interval_dates.to_numpy().flatten()[idx]
+
     # Corrupted or cloudy image
     q = InvalidImage.select().where(InvalidImage.tile_id == tile_id, 
                                     InvalidImage.interval_id == interval_id)
@@ -158,7 +162,7 @@ class GLAD():
             dataset.nodata = 0
             for i in range(1, dataset.count + 1):
               band = dataset.read(i)
-              band = np.where(mask, 0, band)
+              band = np.where(mask, band, 0)
               dataset.write(band, i)
 
           tmp_file_cog = tmp_file_tif.replace('.tif', '.cog.tif')
@@ -187,6 +191,7 @@ class GLAD():
     
     ds = rioxarray.open_rasterio(presigned_url, masked=True)
     ds['band'] = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
+    ds = ds.expand_dims(date=[date])
     return ds
   
   def delete_image(self, tile_id: str, interval_id: int):

@@ -1,0 +1,17 @@
+# VS Code Settings
+.vscode
+
+# Python venv
+base
+
+# Python
+__pycache__
+.pyc
+cache.db*
+
+# Credentials
+.env
+
+# Data
+*.tif
+*.zarr

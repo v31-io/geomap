@@ -1,0 +1,16 @@
+rasterio==1.4.3
+pandas==2.2.3
+openpyxl==3.1.5
+numpy==2.2.5
+diskcache==5.6.3
+boto3==1.38.
+requests==2.32.3
+tqdm==4.67.1
+xarray==2025.3.1
+rioxarray===0.19.0
+zarr==3.0.7
+matplotlib==3.10.1
+dask==2025.4.1
+peewee==3.18.0
+psycopg2-binary==2.9.10
+rio-cogeo==5.4.1

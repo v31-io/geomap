@@ -191,7 +191,7 @@ class GLAD():
     
     ds = rioxarray.open_rasterio(presigned_url, masked=True)
     ds['band'] = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
-    ds = ds.expand_dims(date=[date])
+    ds = ds.assign_coords(date=date)
     return ds
   
   def delete_image(self, tile_id: str, interval_id: int):

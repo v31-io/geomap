@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-import gc
 from tqdm import tqdm
 from argparse import ArgumentParser
 
@@ -20,9 +19,6 @@ print(f'{len(valid_ids)} IDs found for ingestion.')
 
 for id in tqdm(valid_ids):
   try:
-    ds = glad.get_image(tile_id=tile_id, interval_id=id)
-    ds.close()
-    ds = None
-    gc.collect()
+    glad.get_image(tile_id=tile_id, interval_id=id)
   except Exception as e:
     print(f'Failed with error - {e}')

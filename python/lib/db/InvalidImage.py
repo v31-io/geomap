@@ -1,4 +1,4 @@
-from peewee import Model, CompositeKey, TextField, FixedCharField, IntegerField
+from peewee import Model, CompositeKey, TextField, FixedCharField, IntegerField, FloatField
 
 from .db import db
 
@@ -6,7 +6,8 @@ from .db import db
 class InvalidImage(Model):
   tile_id = FixedCharField(8)
   interval_id = IntegerField()
-  reason = TextField(null=True)
+  reason = TextField()
+  valid_pixel_percentage = FloatField()
 
   class Meta:
     database = db

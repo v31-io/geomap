@@ -1,14 +1,12 @@
 import os
+import gc
 import shutil
 import requests
 import rioxarray
 import rasterio
-import xarray as xr
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from rasterio.shutil import copy
-from rasterio.enums import Resampling
 from tempfile import TemporaryDirectory
 from datetime import datetime, timedelta
 from diskcache import Cache
@@ -27,11 +25,12 @@ class GLAD():
 
   _cache = Cache(__name__)
   _data_cache = '.geomap'
-  _base_url = "https://glad.umd.edu/"
+  _base_url = "https://glad.umd.edu"
   _interval_id_url = f'{_base_url}/users/Potapov/ARD/16d_intervals.xlsx'
   _days_before_update = 20
   _s3_root_path = 'geomap/glad_ard2'
   _auth = ('glad', 'ardpas')
+  _valid_image_pixels = 0.7
   
   def __init__(self):
     self.get_interval_table()
@@ -97,23 +96,6 @@ class GLAD():
 
     return ids
   
-  def get_download_urls_for_tile(self, tile_id: str):
-    '''
-    Get the valid download URLs for a Tile ID.
-
-    Parameters
-    ----------
-    - tile_id str: Tile ID in the format '054W_03S'
-    '''
-    ids = self.get_valid_ids()
-    lat = tile_id.split('_')[1]
-
-    urls = []
-    for id in ids:
-      url = f'{self._base_url}/dataset/glad_ard2/{lat}/{tile_id}/{id}.tif'
-      urls.append(url)
-    return urls
-  
   def get_image(self, tile_id: str, interval_id: int, retry: bool = False):
     '''
     Get the image for a Tile ID and Interval ID.
@@ -162,13 +144,20 @@ class GLAD():
         invalid_image_reason = ''
 
         try:
+          valid_pixel_percentage = 0
           with rasterio.open(tmp_file_tif, 'r+') as dataset:
-            dataset.descriptions = tuple(['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf'])
             # Add a mask where band 8 is value 1 or 15
             # https://glad.umd.edu/Potapov/ARD/ARD_manual_v1.1.pdf pg 21
-            band_8 = dataset.read(8)  # Read band 8
-            mask = np.logical_or(band_8 == 1, band_8 == 15) 
-            dataset.write_mask(mask.astype(np.uint8) * 255)
+            qf = dataset.read(8)  # Read band 8
+            mask = np.logical_or(qf == 1, qf == 15) 
+            valid_pixel_percentage = mask.sum() / mask.size
+            if valid_pixel_percentage < self._valid_image_pixels:
+              raise Exception(f'Valid pixels in image are below threshold: {valid_pixel_percentage}')
+            dataset.nodata = 0
+            for i in range(1, dataset.count + 1):
+              band = dataset.read(i)
+              band = np.where(mask, 0, band)
+              dataset.write(band, i)
 
           tmp_file_cog = tmp_file_tif.replace('.tif', '.cog.tif')
           convert_to_cog_rio(tmp_file_tif, tmp_file_cog)
@@ -177,14 +166,16 @@ class GLAD():
           print(f'Uploading {tile_id}:{interval_id} to S3 ({s3_key}).')
           self._s3.upload_file(tmp_file_cog, self._s3_bucket, s3_key)
           print(f'Image {tile_id}:{interval_id} uploaded to S3.')
+
         except Exception as e:
           invalid_image_reason = str(e) 
-
-        if invalid_image_reason != '':
           print(f'Error in processing image - {invalid_image_reason}')
           InvalidImage.create(tile_id=tile_id, interval_id=interval_id, 
-                              reason=invalid_image_reason)
+                              reason=invalid_image_reason, valid_pixel_percentage=valid_pixel_percentage)
           raise e
+        
+        finally:
+          gc.collect()
 
 
     # Generate a presigned URL for the S3 object
@@ -192,7 +183,9 @@ class GLAD():
                                                     Params={'Bucket': self._s3_bucket, 'Key': s3_key}, 
                                                     ExpiresIn=3600)
     
-    return rioxarray.open_rasterio(presigned_url)
+    ds = rioxarray.open_rasterio(presigned_url, masked=True)
+    ds['band'] = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
+    return ds
   
   def delete_image(self, tile_id: str, interval_id: int):
     '''

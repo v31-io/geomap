@@ -4,7 +4,7 @@ pandas==2.2.3
 openpyxl==3.1.5
 numpy==2.2.5
 diskcache==5.6.3
-boto3==1.38.
+boto3==1.38.3
 requests==2.32.3
 tqdm==4.67.1
 xarray==2025.3.1

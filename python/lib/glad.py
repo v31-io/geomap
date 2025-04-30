@@ -194,6 +194,13 @@ class GLAD():
     ds = ds.assign_coords(date=date)
     return ds
   
+  def list_images(self, tile_id: str):
+    prefix = f'{self._s3_root_path}/{tile_id}/raw/'
+    ids = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix)['Contents']
+    ids = [id['Key'].replace(prefix, '').replace('.tif', '') for id in ids]
+    ids = [int(id) for id in ids if id != '']
+    return ids
+  
   def delete_image(self, tile_id: str, interval_id: int):
     '''
     Delete the image for a Tile ID and Interval ID.

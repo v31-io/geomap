@@ -1,16 +1,23 @@
 import os
+import shutil
 import requests
+import rioxarray
+import rasterio
 import xarray as xr
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from tempfile import NamedTemporaryFile
+from rasterio.shutil import copy
+from rasterio.enums import Resampling
+from tempfile import TemporaryDirectory
 from datetime import datetime, timedelta
 from diskcache import Cache
 from boto3 import client
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from .db.InvalidImage import InvalidImage
+from .util import convert_to_cog_rio
 
 
 class GLAD():
@@ -31,7 +38,8 @@ class GLAD():
     self._s3_bucket = os.environ['S3_URL'].split('/')[-1]
     self._s3 = client('s3', aws_access_key_id=os.environ['S3_ACCESS_KEY'],
                       aws_secret_access_key=os.environ['S3_SECRET_KEY'],
-                      endpoint_url=os.environ['S3_URL'][:-len(self._s3_bucket)-1])
+                      endpoint_url=os.environ['S3_URL'][:-len(self._s3_bucket)-1],
+                      config=Config(signature_version = 'v4'))
 
   def get_interval_table(self):
     '''
@@ -106,7 +114,7 @@ class GLAD():
       urls.append(url)
     return urls
   
-  def get_image(self, tile_id: str, interval_id: int):
+  def get_image(self, tile_id: str, interval_id: int, retry: bool = False):
     '''
     Get the image for a Tile ID and Interval ID.
 
@@ -118,6 +126,15 @@ class GLAD():
     lat = tile_id.split('_')[1]
     s3_key = f'{self._s3_root_path}/{tile_id}/raw/{interval_id}.tif'
 
+    # Corrupted or cloudy image
+    q = InvalidImage.select().where(InvalidImage.tile_id == tile_id, 
+                                    InvalidImage.interval_id == interval_id)
+    if len(q) > 0:
+      if retry:
+        q[0].delete_instance()
+      else:
+        raise Exception(f'Image {tile_id}:{interval_id} in invalid. {q[0].reason}')
+
     try:
       self._s3.get_object(Bucket=self._s3_bucket, Key=s3_key)
     
@@ -125,33 +142,57 @@ class GLAD():
       error_code = e.response['Error']['Code']
       if error_code != 'NoSuchKey':
         raise e
+      
       print(f'Image {tile_id}:{interval_id} not found in S3 ({s3_key}). Downloading from GLAD...')
       url = f'{self._base_url}/dataset/glad_ard2/{lat}/{tile_id}/{interval_id}.tif'
       
       # Download the image
       print(f'Downloading {url}...')
-      with NamedTemporaryFile() as tmp_file:
+      with TemporaryDirectory() as tdir:
         r = requests.get(url, auth=self._auth, stream=True)
         total_size = int(r.headers.get("content-length", 0))
+        tmp_file_tif = os.path.join(tdir, 'temp.tif')
         with tqdm(total=total_size, unit="B", unit_scale=True, mininterval=10) as progress_bar:
-          for bits in r.iter_content(chunk_size=8192):
-            tmp_file.write(bits)
-            progress_bar.update(len(bits))
-      
-        # Upload to S3
-        print(f'Uploading {tile_id}:{interval_id} to S3 ({s3_key}).')
-        self._s3.upload_file(tmp_file.name, self._s3_bucket, s3_key)
-        print(f'Image {tile_id}:{interval_id} uploaded to S3.')
+          with open(tmp_file_tif, 'wb') as f:
+            for bits in r.iter_content(chunk_size=8192):
+              f.write(bits)
+              progress_bar.update(len(bits))
 
-    data_cache_path = os.path.join(self._data_cache, s3_key)
-    os.makedirs(os.path.dirname(data_cache_path), exist_ok=True)
-    if not os.path.exists(data_cache_path):  
-      print(f'Loading image {tile_id}:{interval_id} into cache ({data_cache_path}).')
-      self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key, Filename=data_cache_path)
-    else:
-      print(f'Loading image {tile_id}:{interval_id} from cache ({data_cache_path}).')
+        # Check for valid image
+        invalid_image_reason = ''
 
-    return xr.open_dataset(data_cache_path, engine='rasterio')
+        try:
+          with rasterio.open(tmp_file_tif, 'r+') as dataset:
+            dataset.descriptions = tuple(['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf'])
+            # Add a mask where band 8 is value 1 or 15
+            # https://glad.umd.edu/Potapov/ARD/ARD_manual_v1.1.pdf pg 21
+            band_8 = dataset.read(8)  # Read band 8
+            mask = np.logical_or(band_8 == 1, band_8 == 15) 
+            dataset.write_mask(mask.astype(np.uint8) * 255)
+
+          tmp_file_cog = tmp_file_tif.replace('.tif', '.cog.tif')
+          convert_to_cog_rio(tmp_file_tif, tmp_file_cog)
+
+          # Upload to S3
+          print(f'Uploading {tile_id}:{interval_id} to S3 ({s3_key}).')
+          self._s3.upload_file(tmp_file_cog, self._s3_bucket, s3_key)
+          print(f'Image {tile_id}:{interval_id} uploaded to S3.')
+        except Exception as e:
+          invalid_image_reason = str(e) 
+
+        if invalid_image_reason != '':
+          print(f'Error in processing image - {invalid_image_reason}')
+          InvalidImage.create(tile_id=tile_id, interval_id=interval_id, 
+                              reason=invalid_image_reason)
+          raise e
+
+
+    # Generate a presigned URL for the S3 object
+    presigned_url = self._s3.generate_presigned_url('get_object', 
+                                                    Params={'Bucket': self._s3_bucket, 'Key': s3_key}, 
+                                                    ExpiresIn=3600)
+    
+    return rioxarray.open_rasterio(presigned_url)
   
   def delete_image(self, tile_id: str, interval_id: int):
     '''
@@ -166,8 +207,9 @@ class GLAD():
     
     try:
       self._s3.delete_object(Bucket=self._s3_bucket, Key=s3_key)
-      data_cache_path = os.path.join(self._data_cache, s3_key)
-      os.remove(data_cache_path)
     
     except Exception as e:
       pass
+
+  def cache_clear(self):
+    shutil.rmtree(self._data_cache, ignore_errors=True)

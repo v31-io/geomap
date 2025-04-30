@@ -11,3 +11,7 @@ cache.db*
 
 # Credentials
 .env
+
+# Data
+*.tif
+*.zarr

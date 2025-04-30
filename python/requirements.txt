@@ -13,3 +13,4 @@ matplotlib==3.10.1
 dask==2025.4.1
 peewee==3.18.0
 psycopg2-binary==2.9.10
+rio-cogeo==5.4.1

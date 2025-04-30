@@ -153,6 +153,8 @@ class GLAD():
             valid_pixel_percentage = mask.sum() / mask.size
             if valid_pixel_percentage < self._valid_image_pixels:
               raise Exception(f'Valid pixels in image are below threshold: {valid_pixel_percentage}')
+            else:
+              print(f'Valid pixels in image are above threshold: {valid_pixel_percentage}')
             dataset.nodata = 0
             for i in range(1, dataset.count + 1):
               band = dataset.read(i)

@@ -1,0 +1,13 @@
+services:
+  frontend:
+    build:
+      context: frontend
+      target: development
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/
+    network_mode: service:nginx

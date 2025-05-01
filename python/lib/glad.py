@@ -106,7 +106,7 @@ class GLAD():
     - interval_id int: Interval ID
     '''
     lat = tile_id.split('_')[1]
-    s3_key = f'{self._s3_root_path}/{tile_id}/raw/{interval_id}.tif'
+    s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/raw.tif'
 
     interval_table, interval_dates = self.get_interval_table()
     idx = np.where(interval_table.to_numpy().flatten() == interval_id)[0][0]
@@ -188,6 +188,7 @@ class GLAD():
     presigned_url = self._s3.generate_presigned_url('get_object', 
                                                     Params={'Bucket': self._s3_bucket, 'Key': s3_key}, 
                                                     ExpiresIn=3600)
+    print(presigned_url)
     
     ds = rioxarray.open_rasterio(presigned_url, masked=True)
     ds['band'] = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
@@ -195,10 +196,9 @@ class GLAD():
     return ds
   
   def list_images(self, tile_id: str):
-    prefix = f'{self._s3_root_path}/{tile_id}/raw/'
-    ids = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix)['Contents']
-    ids = [id['Key'].replace(prefix, '').replace('.tif', '') for id in ids]
-    ids = [int(id) for id in ids if id != '']
+    prefix = f'{self._s3_root_path}/{tile_id}/'
+    ids = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter='/')['CommonPrefixes']
+    ids = sorted([int(id['Prefix'].replace(prefix, '').split('/')[0]) for id in ids])
     return ids
   
   def delete_image(self, tile_id: str, interval_id: int):
@@ -210,10 +210,13 @@ class GLAD():
     - tile_id str: Tile ID in the format '054W_03S'
     - interval_id int: Interval ID
     '''
-    s3_key = f'{self._s3_root_path}/{tile_id}/raw/{interval_id}.tif'
+    s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/'
     
     try:
-      self._s3.delete_object(Bucket=self._s3_bucket, Key=s3_key)
+      keys = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=s3_key)['Contents']
+      keys = {'Objects': [{'Key': key['Key']} for key in keys]}
+      print(keys)
+      self._s3.delete_objects(Bucket=self._s3_bucket, Delete=keys)
     
     except Exception as e:
       pass

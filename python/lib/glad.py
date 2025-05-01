@@ -65,7 +65,6 @@ class GLAD():
       self._cache.set('interval_dates', self._interval_dates)
 
     else:
-      print('Loading interval table from cache...')
       self._interval_table = self._cache.get('interval_table')
       self._interval_dates = self._cache.get('interval_dates')
                                             
@@ -98,12 +97,12 @@ class GLAD():
   
   def get_image(self, tile_id: str, interval_id: int, retry: bool = False):
     '''
-    Get the image for a Tile ID and Interval ID.
+      Get the image for a Tile ID and Interval ID.
 
-    Parameters
-    ----------
-    - tile_id str: Tile ID in the format '054W_03S'
-    - interval_id int: Interval ID
+      Parameters
+      ----------
+      - tile_id str: Tile ID in the format '054W_03S'
+      - interval_id int: Interval ID
     '''
     lat = tile_id.split('_')[1]
     s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/raw.tif'
@@ -188,11 +187,83 @@ class GLAD():
     presigned_url = self._s3.generate_presigned_url('get_object', 
                                                     Params={'Bucket': self._s3_bucket, 'Key': s3_key}, 
                                                     ExpiresIn=3600)
-    print(presigned_url)
     
     ds = rioxarray.open_rasterio(presigned_url, masked=True)
     ds['band'] = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
     ds = ds.assign_coords(date=date)
+    ds.attrs['url'] = presigned_url
+    return ds
+  
+  def get_image_rgba(self, tile_id: str, interval_id: int):
+    '''
+      Get the image for a Tile ID and Interval ID.
+
+      Parameters
+      ----------
+      - tile_id str: Tile ID in the format '054W_03S'
+      - interval_id int: Interval ID
+    '''
+    s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/rgba.tif'
+
+    interval_table, interval_dates = self.get_interval_table()
+    idx = np.where(interval_table.to_numpy().flatten() == interval_id)[0][0]
+    date = interval_dates.to_numpy().flatten()[idx]
+
+    try:
+      self._s3.get_object(Bucket=self._s3_bucket, Key=s3_key)
+    
+    except ClientError as e:
+      error_code = e.response['Error']['Code']
+      if error_code != 'NoSuchKey':
+        raise e
+      
+      print(f'Image {tile_id}:{interval_id} not found in S3 ({s3_key}).')
+      
+      # Process the image
+      print(f'Processing image...')
+      with TemporaryDirectory() as tdir:
+        tdir = '.'
+        raw_tif = os.path.join(tdir, 'raw.tif')
+        rgba_tif = os.path.join(tdir, 'rgba.tif')
+        self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key.replace('rgba.tif', 'raw.tif'), Filename=raw_tif)
+
+        with rasterio.open(raw_tif, mode='r') as src:
+          rgba = src.read([3, 2, 1, 8])
+          for i in range(3):
+            rgba[i] = (rgba[i] - rgba[i].min()) / (rgba[i].max() - rgba[i].min()) * 255
+          rgba = rgba.astype(np.uint8)
+    
+          qf = src.read(8)
+          mask = np.logical_or(qf == 1, qf == 15) 
+          rgba[3] = np.where(mask, 255, 0)
+    
+          new_meta = src.meta.copy()
+          new_meta['count'] = 4
+          new_meta['dtype'] = 'uint8'
+
+          with rasterio.open(rgba_tif, 'w', **new_meta) as dst:
+            dst.write(rgba)
+
+        tmp_file_cog = rgba_tif.replace('.tif', '.cog.tif')
+        convert_to_cog_rio(rgba_tif, tmp_file_cog, add_mask=False)
+        
+        # Upload to S3
+        print(f'Uploading {tile_id}:{interval_id} to S3 ({s3_key}).')
+        self._s3.upload_file(tmp_file_cog, self._s3_bucket, s3_key)
+        print(f'Image {tile_id}:{interval_id} uploaded to S3.')
+
+        gc.collect()
+
+
+    # Generate a presigned URL for the S3 object
+    presigned_url = self._s3.generate_presigned_url('get_object', 
+                                                    Params={'Bucket': self._s3_bucket, 'Key': s3_key}, 
+                                                    ExpiresIn=3600)
+    
+    ds = rioxarray.open_rasterio(presigned_url)
+    ds['band'] = ['red', 'green', 'blue', 'alpha']
+    ds = ds.assign_coords(date=date)
+    ds.attrs['url'] = presigned_url
     return ds
   
   def list_images(self, tile_id: str):

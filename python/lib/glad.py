@@ -29,6 +29,7 @@ class GLAD():
   _interval_id_url = f'{_base_url}/users/Potapov/ARD/16d_intervals.xlsx'
   _days_before_update = 20
   _s3_root_path = 'geomap/glad_ard2'
+  _s3_public_url = os.environ['PUBLIC_S3_URL']
   _auth = ('glad', 'ardpas')
   _valid_image_pixels = 0.7
   
@@ -183,15 +184,13 @@ class GLAD():
           gc.collect()
 
 
-    # Generate a presigned URL for the S3 object
-    presigned_url = self._s3.generate_presigned_url('get_object', 
-                                                    Params={'Bucket': self._s3_bucket, 'Key': s3_key}, 
-                                                    ExpiresIn=3600)
+    # Generate a URL for the S3 object
+    url = f'{self._s3_public_url}/{s3_key}'
     
-    ds = rioxarray.open_rasterio(presigned_url, masked=True)
+    ds = rioxarray.open_rasterio(url, masked=True)
     ds['band'] = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
     ds = ds.assign_coords(date=date)
-    ds.attrs['url'] = presigned_url
+    ds.attrs['url'] = url
     return ds
   
   def get_image_rgba(self, tile_id: str, interval_id: int):
@@ -222,7 +221,6 @@ class GLAD():
       # Process the image
       print(f'Processing image...')
       with TemporaryDirectory() as tdir:
-        tdir = '.'
         raw_tif = os.path.join(tdir, 'raw.tif')
         rgba_tif = os.path.join(tdir, 'rgba.tif')
         self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key.replace('rgba.tif', 'raw.tif'), Filename=raw_tif)
@@ -255,15 +253,13 @@ class GLAD():
         gc.collect()
 
 
-    # Generate a presigned URL for the S3 object
-    presigned_url = self._s3.generate_presigned_url('get_object', 
-                                                    Params={'Bucket': self._s3_bucket, 'Key': s3_key}, 
-                                                    ExpiresIn=3600)
+    # Generate a URL for the S3 object
+    url = f'{self._s3_public_url}/{s3_key}'
     
-    ds = rioxarray.open_rasterio(presigned_url)
+    ds = rioxarray.open_rasterio(url)
     ds['band'] = ['red', 'green', 'blue', 'alpha']
     ds = ds.assign_coords(date=date)
-    ds.attrs['url'] = presigned_url
+    ds.attrs['url'] = url
     return ds
   
   def list_images(self, tile_id: str):

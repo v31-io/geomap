@@ -286,7 +286,6 @@ class GLAD():
     try:
       keys = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=s3_key)['Contents']
       keys = {'Objects': [{'Key': key['Key']} for key in keys]}
-      print(keys)
       self._s3.delete_objects(Bucket=self._s3_bucket, Delete=keys)
     
     except Exception as e:

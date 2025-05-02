@@ -16,7 +16,11 @@ const trueColor = ref({
   gamma: 1.1,
 });
 
-const url = 'https://3b8f143e486b0ff5cf3d66a77f0077a2.eu.r2.cloudflarestorage.com/v31-store/geomap/glad_ard2/054W_03S/402/rgba.tif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=83bd44fa5539bb11faf40f5e1ded7736%2F20250501%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250501T130448Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=8a6600adbc396f093b2ff594396e379d5debe8da0c5e9214ca090c130ffb9166'
+const urls = ref([
+  'https://store.v31.io/geomap/glad_ard2/055W_03S/404/rgba.tif',
+  'https://store.v31.io/geomap/glad_ard2/054W_03S/404/rgba.tif',
+  'https://store.v31.io/geomap/glad_ard2/056W_03S/404/rgba.tif'
+])
 </script>
 
 <template>
@@ -27,8 +31,10 @@ const url = 'https://3b8f143e486b0ff5cf3d66a77f0077a2.eu.r2.cloudflarestorage.co
       <Sources.OlSourceOsm/>
     </Layers.OlWebglTileLayer>
 
-    <Layers.OlWebglTileLayer :zIndex="1002" :style="trueColor" :preload="Infinity" :transition="true">
-      <Sources.OlSourceGeoTiff :sources="[{url: url}]" :transparent="true"/>
-    </Layers.OlWebglTileLayer>
+    <div v-for="(url, index) in urls" :key="index">
+      <Layers.OlWebglTileLayer :zIndex="1002" :style="trueColor" :preload="Infinity" :transition="true">
+        <Sources.OlSourceGeoTiff :sources="[{url: [url]}]" :transparent="true"/>
+      </Layers.OlWebglTileLayer>
+    </div>
   </Map.OlMap>
 </template>

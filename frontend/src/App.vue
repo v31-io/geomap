@@ -1,4 +1,5 @@
 <script setup>
+import axios from "axios";
 import { ref } from "vue";
 import { Map, Layers, Sources } from "vue3-openlayers";
 
@@ -16,11 +17,17 @@ const trueColor = ref({
   gamma: 1.1,
 });
 
-const urls = ref([
-  'https://store.v31.io/geomap/glad_ard2/055W_03S/404/rgba.tif',
-  'https://store.v31.io/geomap/glad_ard2/054W_03S/404/rgba.tif',
-  'https://store.v31.io/geomap/glad_ard2/056W_03S/404/rgba.tif'
-])
+const urls = ref([])
+
+async function fetchData() {
+  const response = await axios.get('/api');
+  const tiles = response.data;
+  Object.keys(tiles['tiles']).forEach(tile => {
+    const id = tiles['tiles'][tile][0]['ID'];
+    urls.value.push(`${tiles['base_url']}/${tile}/${id}/rgba.tif`);
+  });
+}
+fetchData()
 </script>
 
 <template>

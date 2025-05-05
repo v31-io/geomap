@@ -17,3 +17,4 @@ psycopg2-binary==2.9.10
 rio-cogeo==5.4.1
 fastapi[standard]==0.115.12
 gunicorn==23.0.0
+fastapi-utils[all]==0.8.0

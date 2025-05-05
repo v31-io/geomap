@@ -1,4 +1,4 @@
-FROM python:3.11-slim as base
+FROM python:3.11 as base
 
 WORKDIR /app
 COPY ./requirements.txt /app/requirements.txt
@@ -14,7 +14,7 @@ EXPOSE 4000
 ################################################################################
 FROM base AS development
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4000"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "4000"]
 ################################################################################
 
 

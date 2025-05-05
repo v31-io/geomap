@@ -96,6 +96,9 @@ class GLAD():
 
     return ids
   
+  def get_image_base_url(self):
+    return f'{self._s3_public_url}/{self._s3_root_path}'
+  
   def get_image(self, tile_id: str, interval_id: int, retry: bool = False):
     '''
       Get the image for a Tile ID and Interval ID.
@@ -267,6 +270,23 @@ class GLAD():
     ids = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter='/')['CommonPrefixes']
     ids = sorted([int(id['Prefix'].replace(prefix, '').split('/')[0]) for id in ids])
     return ids
+  
+  def list_tiles(self, full: bool = False):
+    prefix = f'{self._s3_root_path}/'
+    tiles = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=prefix, Delimiter='/')['CommonPrefixes']
+    tiles = sorted([tile['Prefix'].replace(prefix, '').split('/')[0] for tile in tiles])
+
+    if full:
+      interval_table, interval_dates = self.get_interval_table()
+      interval_table = interval_table.to_numpy().flatten()
+      interval_dates = interval_dates.to_numpy().flatten()
+
+      tiles = {tile: self.list_images(tile) for tile in tiles}
+      for tile in tiles:
+        tiles[tile] = [{'ID': id, 'Date': pd.Timestamp(interval_dates[np.where(interval_table == id)[0][0]])} 
+                       for id in tiles[tile]]
+
+    return tiles
   
   def delete_image(self, tile_id: str, interval_id: int):
     '''

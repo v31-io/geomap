@@ -15,9 +15,13 @@ def task_update_tiles() -> None:
     app.state.tile_cache = update_tiles()
 
 # Routes
+@app.head("/")
+def head_root():
+  return {"status": "OK"}
+
 @app.get("/")
-def read_root():
-    return app.state.tile_cache
+def get_root():
+  return app.state.tile_cache
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=4000, reload=True)

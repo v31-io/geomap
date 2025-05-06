@@ -23,5 +23,5 @@ CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "4000", "--worker
 ################################################################################
 FROM base AS production
 
-CMD ["uvicorn", "api.main:app", "-k", "uvicorn.workers.UvicornWorker", "--host", "0.0.0.0", "--port", "4000", "--workers", "1"]
+CMD ["gunicorn", "api.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:4000", "--workers", "1"]
 ################################################################################

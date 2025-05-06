@@ -18,3 +18,5 @@ rio-cogeo==5.4.1
 fastapi[standard]==0.115.12
 gunicorn==23.0.0
 fastapi-utils[all]==0.8.0
+python-keycloak==5.5.0
+pyjwt==2.10.1

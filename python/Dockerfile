@@ -14,7 +14,7 @@ EXPOSE 4000
 ################################################################################
 FROM base AS development
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "4000"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "4000", "--workers", "1"]
 ################################################################################
 
 
@@ -23,5 +23,5 @@ CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "4000"]
 ################################################################################
 FROM base AS production
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "main"]
+CMD ["uvicorn", "api.main:app", "-k", "uvicorn.workers.UvicornWorker", "--host", "0.0.0.0", "--port", "4000", "--workers", "1"]
 ################################################################################

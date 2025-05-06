@@ -2,9 +2,12 @@
 import axios from "axios";
 import { ref, computed } from "vue";
 import { Map, Layers, Sources, MapControls } from "vue3-openlayers";
+import { useKeycloak } from '@dsb-norge/vue-keycloak-js'
 
-const center = ref([-54.5, -3.5]);
-const zoom = ref(9);
+
+const { keycloak, token } = useKeycloak()
+const center = ref([0, 0]);
+const zoom = ref(2);
 const projection = ref("EPSG:4326");
 
 const red = ["band", 1];
@@ -62,13 +65,16 @@ const urls = computed((previous) => {
 })
 
 async function fetchData() {
-  const response = await axios.get('/api');
+  const response = await axios.get('/api', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
   meta.value = response.data;
 }
 fetchData()
 </script>
 
 <template>
+  <button type="button" class="logout-button" @click="keycloak.logout()">Logout</button>
   <input type="date" class="date-picker" v-model="date" min="1997-01-01" max="2030-01-01"/>
   <Map.OlMap style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
     <Map.OlView ref="view" :center="center" :zoom="zoom" :projection="projection"/>
@@ -89,10 +95,21 @@ fetchData()
 </template>
 
 <style>
+.logout-button {
+  position: absolute; 
+  top: 8px;
+  right: 8px;
+  z-index: 1000;
+  background: white; 
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
 .date-picker {
   position: absolute; 
-  bottom: 10px;
-  left: 10px;
+  bottom: 8px;
+  left: 8px;
   z-index: 1000;
   background: white; 
   padding: 5px;

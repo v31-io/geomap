@@ -1,24 +1,24 @@
 <script setup>
-import axios from "axios";
-import { ref, computed } from "vue";
-import { Map, Layers, Sources, MapControls } from "vue3-openlayers";
+import axios from "axios"
+import { ref, computed } from "vue"
+import { Map, Layers, Sources, MapControls } from "vue3-openlayers"
 import { useKeycloak } from '@dsb-norge/vue-keycloak-js'
 
 
 const { keycloak, token } = useKeycloak()
-const center = ref([0, 0]);
-const zoom = ref(2);
-const projection = ref("EPSG:4326");
+const center = ref([0, 0])
+const zoom = ref(2)
+const projection = ref("EPSG:4326")
 
-const red = ["band", 1];
-const green = ["band", 2];
-const blue = ["band", 3];
+const red = ["band", 1]
+const green = ["band", 2]
+const blue = ["band", 3]
 const alpha = ['band', 4]
 
 const trueColor = ref({
   color: ["array", red, green, blue, alpha],
   gamma: 1.1,
-});
+})
 
 const date = ref(new Date().toISOString().split('T')[0])
 const meta = ref({})
@@ -45,7 +45,7 @@ const urls = computed((previous) => {
     layers.value.forEach((layer) => {
       _urls[layer['layer']] = []
       Object.keys(tiles).forEach(tile => {
-        let id = tiles[tile][tiles[tile].length - 1]['ID'];
+        let id = tiles[tile][tiles[tile].length - 1]['ID']
         // Determine closest id to selected date
         if (date.value) {
           const img = tiles[tile].find(img => {
@@ -55,7 +55,7 @@ const urls = computed((previous) => {
             id = img['ID']
           }
         }
-        _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`);
+        _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`)
       })
     })
     return _urls
@@ -64,19 +64,26 @@ const urls = computed((previous) => {
   }
 })
 
+function showAttributions() {
+  alert(meta.value['attributions'])
+}
+
 async function fetchData() {
+  await axios.head('/api')
   const response = await axios.get('/api', {
     headers: { Authorization: `Bearer ${token}` }
-  });
-  meta.value = response.data;
+  })
+  meta.value = response.data
 }
 fetchData()
 </script>
 
 <template>
-  <button type="button" class="logout-button" @click="keycloak.logout()">Logout</button>
-  <input type="date" class="date-picker" v-model="date" min="1997-01-01" max="2030-01-01"/>
-  <Map.OlMap style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+  <button type="button" class="logout-button overlay" @click="keycloak.logout()">Logout</button>
+  <button v-if="meta.hasOwnProperty('attributions')" type="button" class="attribution-button overlay" 
+    @click="showAttributions()">Info</button>
+  <input type="date" class="date-picker overlay" v-model="date" min="1997-01-01" max="2030-01-01"/>
+  <Map.OlMap class="map">
     <Map.OlView ref="view" :center="center" :zoom="zoom" :projection="projection"/>
 
     <MapControls.OlLayerswitcherControl v-if="layers.length > 0" :reordering="false"/>
@@ -95,21 +102,31 @@ fetchData()
 </template>
 
 <style>
+.map {
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%;
+}
+
+.attribution-button {
+  bottom: 8px;
+  right: 8px;
+}
+
 .logout-button {
-  position: absolute; 
   top: 8px;
   right: 8px;
-  z-index: 1000;
-  background: white; 
-  padding: 5px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
 }
 
 .date-picker {
-  position: absolute; 
   bottom: 8px;
   left: 8px;
+}
+
+.overlay {
+  position: absolute; 
   z-index: 1000;
   background: white; 
   padding: 5px;

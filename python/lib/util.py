@@ -11,7 +11,16 @@ from rasterio import MemoryFile
 from rio_cogeo.profiles import cog_profiles
 
 
-def convert_to_cog_rio(input_geotiff, output_cog, add_mask=True):
+def convert_to_cog_rio(input_geotiff: str, output_cog: str, add_mask: bool = True):
+  '''
+    Convert a GeoTIFF to a Cloud Optimized GeoTIFF
+
+    Parameters
+    ----------
+    - input_geotiff: str - Input GeoTIFF path
+    - output_cog: str - Output GeoTIFF path
+    - add_mask: bool optional - Force output dataset creation with a mask.
+  '''
   try:
     with MemoryFile() as memfile:
       cog_translate(input_geotiff, memfile.name, cog_profiles.get("deflate"), add_mask=add_mask)

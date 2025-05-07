@@ -16,7 +16,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from .db.InvalidImage import InvalidImage
-from .util import convert_to_cog_rio
+from .util import convert_to_cog_rio, fill_geotiff_stack
 
 
 class GLAD():
@@ -123,8 +123,9 @@ class GLAD():
 
       Parameters
       ----------
-      - tile_id str: Tile ID in the format '054W_03S'
-      - interval_id int: Interval ID
+      - tile_id: str - Tile ID in the format '054W_03S'
+      - interval_id: int - Interval ID
+      - retry: bool optional -  Retry processing if previously failed
     '''
     lat = tile_id.split('_')[1]
     s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/raw.tif'
@@ -214,38 +215,27 @@ class GLAD():
     ds.attrs['url'] = url
     return ds
   
-  def get_image_rgba(self, tile_id: str, interval_id: int):
+  def process_images_rgba(self, tile_id: str):
     '''
-      Get the image for a Tile ID and Interval ID.
-
-      Parameters
-      ----------
-      - tile_id str: Tile ID in the format '054W_03S'
-      - interval_id int: Interval ID
+      Process the rgba images for a Tile ID.
+      This involves extracting the RGB bands and running forward fill and back fill 
+      on the stack to impute missing values.
     '''
-    s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/rgba.tif'
+    ids = self.list_images(tile_id)
 
-    interval_table, interval_dates = self.get_interval_table()
-    idx = np.where(interval_table.to_numpy().flatten() == interval_id)[0][0]
-    date = interval_dates.to_numpy().flatten()[idx]
+    print(f'Processing RGBA images for Tile ID {tile_id}...')
+    with TemporaryDirectory() as tdir:
+      tdir = 'test'
+      # Download stack of images
+      for interval_id in tqdm(ids):
+        s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/raw.tif'
+        raw_tif = os.path.join(tdir, f'{interval_id}-raw.tif')
+        rgba_tif = os.path.join(tdir, f'{interval_id}-rgba.tif')
+        
+        print(f'Downloading {s3_key} to {raw_tif}...')
+        self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key, Filename=raw_tif)
 
-    try:
-      self._s3.get_object(Bucket=self._s3_bucket, Key=s3_key)
-    
-    except ClientError as e:
-      error_code = e.response['Error']['Code']
-      if error_code != 'NoSuchKey':
-        raise e
-      
-      print(f'Image {tile_id}:{interval_id} not found in S3 ({s3_key}).')
-      
-      # Process the image
-      print(f'Processing image...')
-      with TemporaryDirectory() as tdir:
-        raw_tif = os.path.join(tdir, 'raw.tif')
-        rgba_tif = os.path.join(tdir, 'rgba.tif')
-        self._s3.download_file(Bucket=self._s3_bucket, Key=s3_key.replace('rgba.tif', 'raw.tif'), Filename=raw_tif)
-
+        print(f'Extracting RGB bands...')
         with rasterio.open(raw_tif, mode='r') as src:
           rgba = src.read([3, 2, 1, 8])
           for i in range(3):
@@ -263,8 +253,18 @@ class GLAD():
           with rasterio.open(rgba_tif, 'w', **new_meta) as dst:
             dst.write(rgba)
 
-        tmp_file_cog = rgba_tif.replace('.tif', '.cog.tif')
-        convert_to_cog_rio(rgba_tif, tmp_file_cog, add_mask=False)
+      print(f'\nStacking and running ffill and bfill...')
+      rgba_tifs = [os.path.join(tdir, f'{interval_id}-rgba.tif') for interval_id in ids]
+      filled_tifs = [os.path.join(tdir, f'{interval_id}-filled.tif') for interval_id in ids]
+      fill_geotiff_stack(rgba_tifs, filled_tifs, chunk_scheme={'band': 1, 'x': 100, 'y': 100}, 
+                         last_band_mask=True, no_data_value=0)
+
+      # Convert to COGS and upload to S3
+      for interval_id in tqdm(ids):
+        s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/rgba.tif'
+        filled_tif = os.path.join(tdir, f'{interval_id}-filled.tif')
+        tmp_file_cog = filled_tif.replace('.tif', '.cog.tif')
+        convert_to_cog_rio(filled_tif, tmp_file_cog, add_mask=False)
         
         # Upload to S3
         print(f'Uploading {tile_id}:{interval_id} to S3 ({s3_key}).')
@@ -273,6 +273,20 @@ class GLAD():
 
         gc.collect()
 
+  def get_image_rgba(self, tile_id: str, interval_id: int):
+    '''
+      Get the image for a Tile ID and Interval ID.
+
+      Parameters
+      ----------
+      - tile_id: str - Tile ID in the format '054W_03S'
+      - interval_id: int - Interval ID
+    '''
+    s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/rgba.tif'
+
+    interval_table, interval_dates = self.get_interval_table()
+    idx = np.where(interval_table.to_numpy().flatten() == interval_id)[0][0]
+    date = interval_dates.to_numpy().flatten()[idx]
 
     # Generate a URL for the S3 object
     url = f'{self._s3_public_url}/{s3_key}'

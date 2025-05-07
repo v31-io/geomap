@@ -8,6 +8,7 @@ base
 __pycache__
 .pyc
 cache.db*
+*.val
 
 # Credentials
 .env

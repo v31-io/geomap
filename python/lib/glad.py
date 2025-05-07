@@ -6,6 +6,7 @@ import rioxarray
 import rasterio
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from tqdm import tqdm
 from tempfile import TemporaryDirectory
 from datetime import datetime, timedelta
@@ -20,13 +21,14 @@ from .util import convert_to_cog_rio
 
 class GLAD():
   '''
-  https://glad.umd.edu/ard/home
+    https://glad.umd.edu/ard/home
   '''
 
   _cache = Cache(__name__)
   _data_cache = '.geomap'
   _base_url = "https://glad.umd.edu"
   _interval_id_url = f'{_base_url}/users/Potapov/ARD/16d_intervals.xlsx'
+  _tile_geojson_url = f'{_base_url}/users/Potapov/ARD/Global_ARD_tiles.zip'
   _days_before_update = 20
   _s3_root_path = 'geomap/glad_ard2'
   _s3_public_url = os.environ['PUBLIC_S3_URL']
@@ -35,6 +37,7 @@ class GLAD():
   
   def __init__(self):
     self.get_interval_table()
+    self.get_tile_geojson()
     self._s3_bucket = os.environ['S3_URL'].split('/')[-1]
     self._s3 = client('s3', aws_access_key_id=os.environ['S3_ACCESS_KEY'],
                       aws_secret_access_key=os.environ['S3_SECRET_KEY'],
@@ -43,7 +46,7 @@ class GLAD():
 
   def get_interval_table(self):
     '''
-    Get the 16 day interval table from GLAD.
+      Get the 16 day interval table from GLAD.
     '''
     if not 'interval_table' in self._cache:
       print('Downloading interval table from GLAD...')
@@ -70,6 +73,21 @@ class GLAD():
       self._interval_dates = self._cache.get('interval_dates')
                                             
     return self._interval_table, self._interval_dates
+  
+  def get_tile_geojson(self):
+    '''
+      Get the tiles geojson from GLAD.
+    '''
+    if not 'tile_geojson' in self._cache:
+      print('Downloading tile geojson from GLAD...')
+      self._tile_geojson = gpd.read_file(self._tile_geojson_url)
+
+      self._cache.set('tile_geojson', self._tile_geojson)
+
+    else:
+      self._tile_geojson = self._cache.get('tile_geojson')
+                                            
+    return self._tile_geojson
   
   def get_valid_ids(self, tile_id: str = None):
     '''

@@ -1,8 +1,9 @@
 <script setup>
 import axios from "axios"
 import { ref, computed } from "vue"
-import { Map, Layers, Sources, MapControls } from "vue3-openlayers"
+import { Map, Layers, Sources, MapControls, Interactions, Styles } from "vue3-openlayers"
 import { useKeycloak } from '@dsb-norge/vue-keycloak-js'
+import GeoJSON from 'ol/format/GeoJSON'
 
 
 const { keycloak, token } = useKeycloak()
@@ -68,6 +69,16 @@ function showAttributions() {
   alert(meta.value['attributions'])
 }
 
+const selectedFeatureText = ref('')
+const featureSelected = (event) => {
+  if (event.selected.length > 0) {
+    const tileID = event.selected[0].getProperties().TILE
+    // Prevent event from re-rendering UI
+    if (tileID != selectedFeatureText.value)
+      selectedFeatureText.value = tileID
+  }
+};
+
 async function fetchData() {
   await axios.head('/api')
   const response = await axios.get('/api', {
@@ -98,6 +109,17 @@ fetchData()
         <Sources.OlSourceGeoTiff :sources="[{url: [url]}]" :transparent="true"/>
       </Layers.OlWebglTileLayer>
     </Layers.OlLayerGroup>
+
+    <Layers.OlVectorLayer v-if="meta.hasOwnProperty('alltiles')" :zIndex="1003" title="GLAD ARD Tiles" :visible="false">
+      <Sources.OlSourceVector :features="new GeoJSON().readFeatures(meta['alltiles'])" format="geojson"/>
+    </Layers.OlVectorLayer>
+
+    <Interactions.OlInteractionSelect @select="featureSelected">
+      <Styles.OlStyle>
+        <Styles.OlStyleText :text="selectedFeatureText" font="20px sans-serif" />
+        <Styles.OlStyleStroke color="red" :width="5" />
+      </Styles.OlStyle>
+    </Interactions.OlInteractionSelect>
   </Map.OlMap>
 </template>
 

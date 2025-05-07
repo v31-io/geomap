@@ -225,7 +225,6 @@ class GLAD():
 
     print(f'Processing RGBA images for Tile ID {tile_id}...')
     with TemporaryDirectory() as tdir:
-      tdir = 'test'
       # Download stack of images
       for interval_id in tqdm(ids):
         s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/raw.tif'

@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from ..lib.glad import GLAD
 
 
-parser = ArgumentParser(description='Ingest valid GLAD ARD Tile Images')
+parser = ArgumentParser(description='Ingest valid images for GLAD ARD Tile ID')
 parser.add_argument('tile_id', help='Tile ID')
 args = parser.parse_args()
 tile_id = args.tile_id

@@ -116,7 +116,9 @@ fetchData()
 
     <Interactions.OlInteractionSelect @select="featureSelected">
       <Styles.OlStyle>
-        <Styles.OlStyleText :text="selectedFeatureText" font="20px sans-serif" />
+        <Styles.OlStyleText :text="selectedFeatureText" font="20px sans-serif">
+          <Styles.OlStyleFill color="red" />
+        </Styles.OlStyleText>
         <Styles.OlStyleStroke color="red" :width="5" />
       </Styles.OlStyle>
     </Interactions.OlInteractionSelect>

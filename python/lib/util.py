@@ -3,6 +3,7 @@ import rasterio
 import rioxarray
 import xarray as xr
 import numpy as np
+import dask.distributed as dd
 from tqdm import tqdm
 from tempfile import TemporaryDirectory
 from rio_cogeo.cogeo import cog_translate
@@ -52,12 +53,15 @@ def fill_geotiff_stack(input_files, output_files, chunk_scheme, last_band_mask: 
     stack = stack.map_blocks(fill_stack, kwargs={'dim_fill': 'index'}, template=stack)
     stack = stack.to_dataset(name='band_data')
 
-    print('Writing to temporary zarr file...')
-    stack = stack.to_zarr(zarr_file, mode='w', encoding={"band_data": {"fill_value": no_data_value}})
+    with dd.Client():
+      print('\nWriting to temporary zarr file...')
+      write_job = stack.to_zarr(zarr_file, mode='w', encoding={"band_data": {"fill_value": no_data_value}}, compute=False)
+      write_job = write_job.persist()
+      dd.progress(write_job, notebook=False)
 
     stack = xr.open_zarr(zarr_file, decode_coords='all', mask_and_scale=False)['band_data']
 
-    print('Writing to tifs...')
+    print('\nWriting to tifs...')
     for index in tqdm(stack['index'].values):
       with rasterio.open(input_files[index], mode='r') as src:
         bands = stack.isel(index=index).values

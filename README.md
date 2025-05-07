@@ -1,6 +1,6 @@
 # Geo Map
 
-A satellite image processing application with a Vue frontend to see the Cloud Optimized GeoTIFF image layers. The sateliite imagery is used from [Landsat Analysis Ready Data (GLAD ARD)](https://glad.umd.edu/ard/home). 
+A satellite image processing application with a Vue frontend to see the Cloud Optimized GeoTIFF image layers. The satellite imagery is used from [Landsat Analysis Ready Data (GLAD ARD)](https://glad.umd.edu/ard/home). 
 
 This is a docker compose application with different components -
 

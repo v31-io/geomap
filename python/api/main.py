@@ -4,10 +4,14 @@ from fastapi_utils.tasks import repeat_every
 
 from api.tasks.update_tiles import update_tiles
 from api.services.keycloak import TokenVerifier
+from api.services.cookie import SessionIDCookieMiddleware
 
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.state.tile_cache = {}
+
+# SessionID Cookie 
+app.add_middleware(SessionIDCookieMiddleware)
 
 # Tasks
 @app.on_event("startup")

@@ -4,7 +4,7 @@ load_dotenv()
 from tqdm import tqdm
 from argparse import ArgumentParser
 
-from .lib.glad import GLAD
+from ..lib.glad import GLAD
 
 
 parser = ArgumentParser(description='Ingest valid GLAD ARD Tile Images')

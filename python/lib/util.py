@@ -1,10 +1,10 @@
 import os
+import gc
 import warnings
 import rasterio
 import shutil
 import xarray as xr
 import numpy as np
-import dask.distributed as dd
 from tqdm import tqdm
 from tempfile import TemporaryDirectory
 from rio_cogeo.cogeo import cog_translate
@@ -80,11 +80,8 @@ def fill_geotiff_stack(input_files: list, output_files: list, block_size: int, l
                                                        template=stack['band_data'])
 
     zarr_file_filled = os.path.join(tdir, 'temp2.zarr')
-    with dd.Client():
-      print('\nPerforming fill on stacked zarr...')
-      write_job = stack.to_zarr(zarr_file_filled, mode='w', compute=False)
-      write_job = write_job.persist()
-      dd.progress(write_job, notebook=False)
+    print('\nPerforming fill on stacked zarr...')
+    stack.to_zarr(zarr_file_filled, mode='w')
 
     stack = xr.open_zarr(zarr_file_filled, mask_and_scale=False)['band_data']
     shutil.rmtree(zarr_file_stacked)
@@ -102,3 +99,5 @@ def fill_geotiff_stack(input_files: list, output_files: list, block_size: int, l
 
         with rasterio.open(output_files[index], 'w', **new_meta) as dst:
           dst.write(bands)
+
+      gc.collect()

@@ -260,7 +260,7 @@ class GLAD():
       print(f'\nStacking and running ffill and bfill...')
       rgba_tifs = [os.path.join(tdir, f'{interval_id}-rgba.tif') for interval_id in ids]
       filled_tifs = [os.path.join(tdir, f'{interval_id}-filled.tif') for interval_id in ids]
-      fill_geotiff_stack(rgba_tifs, filled_tifs, block_size=300, last_band_mask=True, no_data_value=0)
+      fill_geotiff_stack(rgba_tifs, filled_tifs, block_size=500, last_band_mask=True, no_data_value=0)
 
       for rgba_tif in rgba_tifs:
         os.remove(rgba_tif)

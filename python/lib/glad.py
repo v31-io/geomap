@@ -252,11 +252,13 @@ class GLAD():
           with rasterio.open(rgba_tif, 'w', **new_meta) as dst:
             dst.write(rgba)
 
+        del rgba, qf, mask, new_meta
+        gc.collect()
+
       print(f'\nStacking and running ffill and bfill...')
       rgba_tifs = [os.path.join(tdir, f'{interval_id}-rgba.tif') for interval_id in ids]
       filled_tifs = [os.path.join(tdir, f'{interval_id}-filled.tif') for interval_id in ids]
-      fill_geotiff_stack(rgba_tifs, filled_tifs, chunk_scheme={'band': 1, 'x': 100, 'y': 100}, 
-                         last_band_mask=True, no_data_value=0)
+      fill_geotiff_stack(rgba_tifs, filled_tifs, block_size=100, last_band_mask=True, no_data_value=0)
 
       # Convert to COGS and upload to S3
       for interval_id in tqdm(ids):

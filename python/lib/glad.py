@@ -251,6 +251,8 @@ class GLAD():
 
           with rasterio.open(rgba_tif, 'w', **new_meta) as dst:
             dst.write(rgba)
+          
+          os.remove(raw_tif)
 
         del rgba, qf, mask, new_meta
         gc.collect()
@@ -260,17 +262,22 @@ class GLAD():
       filled_tifs = [os.path.join(tdir, f'{interval_id}-filled.tif') for interval_id in ids]
       fill_geotiff_stack(rgba_tifs, filled_tifs, block_size=100, last_band_mask=True, no_data_value=0)
 
+      for rgba_tif in rgba_tifs:
+        os.remove(rgba_tif)
+
       # Convert to COGS and upload to S3
       for interval_id in tqdm(ids):
         s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/rgba.tif'
         filled_tif = os.path.join(tdir, f'{interval_id}-filled.tif')
         tmp_file_cog = filled_tif.replace('.tif', '.cog.tif')
         convert_to_cog_rio(filled_tif, tmp_file_cog, add_mask=False)
+        os.remove(filled_tif)
         
         # Upload to S3
         print(f'Uploading {tile_id}:{interval_id} to S3 ({s3_key}).')
         self._s3.upload_file(tmp_file_cog, self._s3_bucket, s3_key)
         print(f'Image {tile_id}:{interval_id} uploaded to S3.')
+        os.remove(tmp_file_cog)
 
         gc.collect()
 

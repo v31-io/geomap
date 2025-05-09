@@ -29,4 +29,9 @@ Watch and local development parameters are enabled in the `docker-compose.overri
 
 ## Attributions
 - Landsat Analysis Ready Data (GLAD ARD) -
-  > Potapov, P., Hansen, M.C., Kommareddy, I., Kommareddy, A., Turubanova, S., Pickens, A., Adusei, B., Tyukavina A., and Ying, Q., 2020. \nLandsat analysis ready data for global land cover and land cover change mapping. \nRemote Sens. 2020, 12, 426; doi:10.3390/rs12030426.
+
+  > Potapov, P., Hansen, M.C., Kommareddy, I., Kommareddy, A., Turubanova, S., Pickens, A., Adusei, B., Tyukavina A., and Ying, Q., 2020.
+  > 
+  > Landsat analysis ready data for global land cover and land cover change mapping.
+  > 
+  > Remote Sens. 2020, 12, 426; doi:10.3390/rs12030426.

@@ -1,9 +1,10 @@
+python-dotenv==1.1.0
 rasterio==1.4.3
 pandas==2.2.3
 openpyxl==3.1.5
 numpy==2.2.5
 diskcache==5.6.3
-boto3==1.38.
+boto3==1.38.3
 requests==2.32.3
 tqdm==4.67.1
 xarray==2025.3.1
@@ -14,3 +15,11 @@ dask==2025.4.1
 peewee==3.18.0
 psycopg2-binary==2.9.10
 rio-cogeo==5.4.1
+fastapi[standard]==0.115.12
+gunicorn==23.0.0
+fastapi-utils[all]==0.8.0
+python-keycloak==5.5.0
+pyjwt==2.10.1
+geopandas==1.0.1
+bottleneck==1.4.2
+dask[distributed]==2025.4.1

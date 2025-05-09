@@ -1,0 +1,31 @@
+services:
+  python:
+    build: 
+      context: python
+      target: development
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./python
+          target: /app
+          ignore:
+            - __pycache__
+            - '*.pyc'
+            - '*.pyo'
+            - 'cache.db*'
+            - '*.tif'
+            - '*.zarr'
+    network_mode: service:nginx
+
+  frontend:
+    build:
+      context: frontend
+      target: development
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/
+    network_mode: service:nginx

@@ -18,6 +18,9 @@ def update_tiles():
       {
       'name': 'True Color Image',
       'layer': 'rgba'
+      },{
+      'name': 'Tree Cover',
+      'layer': 'treecover'
       }
     ],
     'tiles': glad.list_tiles(full=True),

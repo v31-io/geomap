@@ -35,17 +35,22 @@ def convert_to_cog_rio(input_geotiff: str, output_cog: str, add_mask: bool = Tru
   except Exception as e:
     print(f"Error converting {input_geotiff} to {output_cog}: {e}")
 
-def fill_geotiff_stack(input_files: list, output_files: list, block_size: int, last_band_mask: bool = False, no_data_value = np.nan):
+def raster_map_blocks(input_files: list, output_files: list, block_size: int, fn_map_blocks: callable, 
+                      no_data_value = np.nan, last_band_mask: tuple = None):
   '''
-    Impute no data for a stack of TIFs using ffill & bfill.
+    Convert a stack of raster GeoTIFFs to Xarray Dataset and apply a map_blocks function. Then convert back to GeoTIFF files
+    for output.
 
     Parameters
     ----------
     - input_files: list - List of input file paths
     - output_files: list - List of output file paths
     - block_size: int - Block size of x & y dimension. Used to optimize for memory
-    - last_band_mask: bool optional - If the last band is a mask band. It will be re-calculated with mask values of 0 & 255
+    - fn_map_blocks: function - Function to apply map_blocks. Signature is (block, dim) -> (block)
     - no_data_value: optional - If the no data value to impute is other than NaN
+    - last_band_mask: tuple optional - If the last band is a mask band then it may need to be re-computed after map_blocks is run.
+        Pass a tuple of `(value where no_data_value, value where no no_data_value)`. Eg for rgba int dtype it can be (0, 255); for 
+        single band float it can be (False, True)
   '''
   with TemporaryDirectory() as tdir:
     print('Stacking tifs in Xarray...')
@@ -67,16 +72,7 @@ def fill_geotiff_stack(input_files: list, output_files: list, block_size: int, l
     for file in stack_paths:
       shutil.rmtree(file)
 
-    def fill_stack(block, dim_fill):
-      original_dtype = block.dtype
-      masked_block = block.where(block != no_data_value, np.nan)
-      filled_block = masked_block.ffill(dim=dim_fill).bfill(dim=dim_fill)
-      block = filled_block.where(~np.isnan(filled_block), no_data_value)
-      block = block.astype(original_dtype)
-    
-      return block
-
-    stack['band_data'] = stack['band_data'].map_blocks(fill_stack, kwargs={'dim_fill': 'index'}, 
+    stack['band_data'] = stack['band_data'].map_blocks(fn_map_blocks, kwargs={'dim': 'index'}, 
                                                        template=stack['band_data'])
 
     zarr_file_filled = os.path.join(tdir, 'filled.zarr')
@@ -90,10 +86,10 @@ def fill_geotiff_stack(input_files: list, output_files: list, block_size: int, l
     for index in tqdm(stack['index'].values):
       with rasterio.open(input_files[index], mode='r') as src:
         bands = stack.isel(index=index).values
-        if last_band_mask:
+        if last_band_mask is not None:
           num_bands = bands.shape[0] - 1
           mask = np.all(bands[0:num_bands] == no_data_value, axis=0)
-          bands[num_bands] = np.where(mask, 0, 255)
+          bands[num_bands] = np.where(mask, last_band_mask[0], last_band_mask[1])
 
         new_meta = src.meta.copy()
 

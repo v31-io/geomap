@@ -67,20 +67,20 @@ def raster_map_blocks(input_files: list, output_files: list, block_size: int, fn
     stack = stack.chunk({'index': len(input_files), 'band': 1, 'x': block_size, 'y': block_size})
     zarr_file_stacked = os.path.join(tdir, 'stacked.zarr')
     stack.to_zarr(zarr_file_stacked, mode='w', encoding={"band_data": {"fill_value": no_data_value}})
-    stack = xr.open_zarr(zarr_file_stacked, mask_and_scale=False)
 
     for file in stack_paths:
       shutil.rmtree(file)
 
+    stack = xr.open_zarr(zarr_file_stacked, mask_and_scale=False)
     stack['band_data'] = stack['band_data'].map_blocks(fn_map_blocks, kwargs={'dim': 'index'}, 
                                                        template=stack['band_data'])
 
     zarr_file_filled = os.path.join(tdir, 'filled.zarr')
     print('\nPerforming fill on stacked zarr...')
     stack.to_zarr(zarr_file_filled, mode='w')
-
-    stack = xr.open_zarr(zarr_file_filled, mask_and_scale=False)['band_data']
     shutil.rmtree(zarr_file_stacked)
+    
+    stack = xr.open_zarr(zarr_file_filled, mask_and_scale=False)['band_data']
 
     print('\nWriting to tifs...')
     for index in tqdm(stack['index'].values):

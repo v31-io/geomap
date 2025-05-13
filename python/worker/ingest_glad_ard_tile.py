@@ -19,6 +19,6 @@ print(f'{len(valid_ids)} IDs found for ingestion.')
 
 for id in tqdm(valid_ids):
   try:
-    glad.get_image(tile_id=tile_id, interval_id=id)
+    glad.process_image_raw(tile_id=tile_id, interval_id=id)
   except Exception as e:
     print(f'Failed with error - {e}')

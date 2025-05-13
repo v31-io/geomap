@@ -117,7 +117,7 @@ class GLAD():
   def get_image_base_url(self):
     return f'{self._s3_public_url}/{self._s3_root_path}'
   
-  def get_image(self, tile_id: str, interval_id: int, retry: bool = False):
+  def process_image_raw(self, tile_id: str, interval_id: int, retry: bool = False):
     '''
       Get the image for a Tile ID and Interval ID.
 
@@ -129,10 +129,6 @@ class GLAD():
     '''
     lat = tile_id.split('_')[1]
     s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/raw.tif'
-
-    interval_table, interval_dates = self.get_interval_table()
-    idx = np.where(interval_table.to_numpy().flatten() == interval_id)[0][0]
-    date = interval_dates.to_numpy().flatten()[idx]
 
     # Corrupted or cloudy image
     q = InvalidImage.select().where(InvalidImage.tile_id == tile_id, 
@@ -204,16 +200,6 @@ class GLAD():
         
         finally:
           gc.collect()
-
-
-    # Generate a URL for the S3 object
-    url = f'{self._s3_public_url}/{s3_key}'
-    
-    ds = rioxarray.open_rasterio(url, masked=True)
-    ds['band'] = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
-    ds = ds.assign_coords(date=date)
-    ds.attrs['url'] = url
-    return ds
   
   def process_images_rgba(self, tile_id: str):
     '''
@@ -281,7 +267,7 @@ class GLAD():
 
         gc.collect()
 
-  def get_image_rgba(self, tile_id: str, interval_id: int):
+  def get_image(self, tile_id: str, interval_id: int, level: str = 'raw'):
     '''
       Get the image for a Tile ID and Interval ID.
 
@@ -289,8 +275,16 @@ class GLAD():
       ----------
       - tile_id: str - Tile ID in the format '054W_03S'
       - interval_id: int - Interval ID
+      - level: str default='raw' - ['raw', 'rgba']
     '''
-    s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/rgba.tif'
+    if level == 'raw':
+      bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'temp', 'qf']
+    elif level == 'rgba':
+      bands = ['red', 'green', 'blue', 'alpha']
+    else:
+      raise Exception(f'Unsupported level {level}.')
+    
+    s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/{level}.tif'
 
     interval_table, interval_dates = self.get_interval_table()
     idx = np.where(interval_table.to_numpy().flatten() == interval_id)[0][0]
@@ -300,7 +294,7 @@ class GLAD():
     url = f'{self._s3_public_url}/{s3_key}'
     
     ds = rioxarray.open_rasterio(url)
-    ds['band'] = ['red', 'green', 'blue', 'alpha']
+    ds['band'] = bands
     ds = ds.assign_coords(date=date)
     ds.attrs['url'] = url
     return ds

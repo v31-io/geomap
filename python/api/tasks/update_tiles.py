@@ -3,10 +3,10 @@ from lib.glad import GLAD
 glad = GLAD()
 
 attributions = '''
-'Landsat Analysis Ready Data (GLAD ARD) used from https://glad.umd.edu/ard/home.
+Landsat Analysis Ready Data (GLAD ARD) used from https://glad.umd.edu/ard/home.
 Potapov, P., Hansen, M.C., Kommareddy, I., Kommareddy, A., Turubanova, S., Pickens, A., Adusei, B., Tyukavina A., and Ying, Q., 2020.
 Landsat analysis ready data for global land cover and land cover change mapping. 
-Remote Sens. 2020, 12, 426; doi:10.3390/rs12030426'
+Remote Sens. 2020, 12, 426; doi:10.3390/rs12030426
 '''
 
 def update_tiles():

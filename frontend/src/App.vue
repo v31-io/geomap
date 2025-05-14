@@ -97,7 +97,7 @@ fetchData()
     <Layers.OlLayerGroup v-for="(layer) in layers" :key="layer" :title="layer['name']">
       <Layers.OlWebglTileLayer v-for="(url) in urls[layer['layer']]" :key="url" 
         :displayInLayerSwitcher="false" :zIndex="1002" :style="layer['style']" :preload="Infinity" :transition="true">
-        <Sources.OlSourceGeoTiff :sources="[{url: [url]}]" :transparent="true" :normalize="layer['normalize']"/>
+        <Sources.OlSourceGeoTiff :sources="[{url: [url], nodata: NaN}]" :transparent="true" :normalize="layer['normalize']"/>
       </Layers.OlWebglTileLayer>
     </Layers.OlLayerGroup>
 

@@ -32,7 +32,12 @@ def update_tiles():
         'bands': 1,
         'style': {
           # Tree cover is green and non-treecover is red
-          'color': ["interpolate", ["linear"], ["band", 1], 0, [20, 90, 50], 1, "red"]
+          'color': [
+            'case',
+            ['==', ['band', 2], 0],
+            [0, 0, 0, 0],
+            ["interpolate", ["linear"], ["band", 1], 0, [20, 90, 50], 1, "red"]
+          ]
         },
         'normalize': False
       }

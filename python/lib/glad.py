@@ -282,11 +282,17 @@ class GLAD():
 
         gc.collect()
 
-  def process_images_treecover(self, tile_id: str):
+  def process_images_treecover(self, tile_id: str, ndvi_diff_cut_trees: float = 0.25, ndvi_tree_lower_bound: float = 0.7):
     '''
       Process the treecover images for a Tile ID.
       This involves computing the NDVI (NIR-RED)/(NIR+RED) to do a timeseries analysis for tree cover. 
       NaN vaues are imputed by running forward fill and back fill on the stack.
+
+      Parameters
+      ----------
+      - tile_id: str - Tile ID
+      - ndvi_diff_cut_trees: float default=0.25 - The difference in NDVI for a tree which has been cut
+      - ndvi_tree_lower_bound: float default=0.7 - Lower bound of what a tree's NDVI would be in a dense forest
     '''
     ids = self.list_images(tile_id)
 
@@ -336,9 +342,9 @@ class GLAD():
         mask = block.notnull()
         # take the rolling mean (3 periods) to smoothen for seasonal variances
         block = block.rolling({f'{dim}': 3}, min_periods=1).mean()
-        # if the difference in NDVI is more than a known value = 0.3 than it usually indicates that tree has been cut
-        # clip lower bounds to a known NDVI value for trees = 0.6
-        block = (block < (block.max(dim=dim) - 0.3).clip(min=0.6))
+        # if the difference in NDVI is more than a known value than it usually indicates that tree has been cut
+        # clip lower bounds to a known NDVI value for trees
+        block = (block < (block.max(dim=dim) - ndvi_diff_cut_trees).clip(min=ndvi_tree_lower_bound))
         # mark all tree loss for all future time points unless re-growth detected for 3 periods
         forestloss = block.cumsum(dim=dim)
         regrowth = (forestloss.rolling({f'{dim}': 3}).std() == 0)

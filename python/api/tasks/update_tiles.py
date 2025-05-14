@@ -18,6 +18,7 @@ def update_tiles():
       {
         'name': 'True Color Image',
         'layer': 'rgba',
+        'visible': False,
         'bands': 4,
         'style': {
           # RGBA
@@ -29,6 +30,7 @@ def update_tiles():
       {
         'name': 'Tree Cover',
         'layer': 'treecover',
+        'visible': True,
         'bands': 1,
         'style': {
           'color': [

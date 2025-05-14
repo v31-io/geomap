@@ -331,7 +331,7 @@ class GLAD():
       # Timeseries analysis to convert NDVI to treecover (0 = tree, 1 = no tree)
       # block shape is (dim=time, bands(1=ndvi), y, x)
       def ndvi_to_treecover(block, dim):
-        mask = block.nonnull()
+        mask = block.notnull()
         # impute missing values with forward and backfill and clip outliers to known NDVI values = (-1, 1)
         block = block.ffill(dim=dim).bfill(dim=dim).clip(max=1, min=-1)
         # take the rolling mean (3 periods) to smoothen for seasonal variances

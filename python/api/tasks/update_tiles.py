@@ -31,11 +31,12 @@ def update_tiles():
         'layer': 'treecover',
         'bands': 1,
         'style': {
-          # Tree cover is green and non-treecover is red
           'color': [
+            # Nodata/NaN is transparent
             'case',
             ['==', ['band', 2], 0],
             [0, 0, 0, 0],
+            # Tree cover is green and non-treecover is red
             ["interpolate", ["linear"], ["band", 1], 0, [20, 90, 50], 1, "red"]
           ]
         },

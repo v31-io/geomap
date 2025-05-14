@@ -4,6 +4,7 @@ import shutil
 import requests
 import rioxarray
 import rasterio
+import xarray as xr
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -327,14 +328,25 @@ class GLAD():
       ndvi_tifs = [os.path.join(tdir, f'{interval_id}-ndvi.tif') for interval_id in ids]
       filled_tifs = [os.path.join(tdir, f'{interval_id}-filled.tif') for interval_id in ids]
 
-      # Impute missing values along stack with ffill and bfill
-      # Timeseries analysis to convert NDVI to treecover
-      def ndvi_treecover(block, dim):
-        block = block.ffill(dim=dim).bfill(dim=dim)
-      
+      # Timeseries analysis to convert NDVI to treecover (0 = tree, 1 = no tree)
+      # block shape is (dim=time, bands(1=ndvi), y, x)
+      def ndvi_to_treecover(block, dim):
+        # impute missing values with forward and backfill and clip outliers to known NDVI values = (-1, 1)
+        block = block.ffill(dim=dim).bfill(dim=dim).clip(max=1, min=-1)
+        # take the rolling mean (3 periods) to smoothen for seasonal variances
+        block = block.rolling({f'{dim}': 3}, min_periods=1).mean()
+        # if the difference in NDVI is more than a known value = 0.3 than it usually indicates that tree has been cut
+        # clip lower bounds to a known NDVI value for trees = 0.6
+        block = (block < (block.max(dim=dim) - 0.3).clip(min=0.6))
+        # mark all tree loss for all future time points unless re-growth detected for 3 periods
+        forestloss = block.cumsum(dim=dim)
+        regrowth = (forestloss.rolling({f'{dim}': 3}).std() == 0)
+        forestloss = forestloss.where(~regrowth)
+        block = xr.where(forestloss > 0, 1, 0)
+
         return block
     
-      raster_map_blocks(ndvi_tifs, filled_tifs, block_size=500, fn_map_blocks=ndvi_treecover)
+      raster_map_blocks(ndvi_tifs, filled_tifs, block_size=500, fn_map_blocks=ndvi_to_treecover)
 
       for ndvi_tif in ndvi_tifs:
         os.remove(ndvi_tif)

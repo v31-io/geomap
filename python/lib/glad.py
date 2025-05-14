@@ -330,7 +330,7 @@ class GLAD():
         del ndvi, qf, mask, new_meta
         gc.collect()
 
-      print(f'\nStacking and running ffill and bfill...')
+      print(f'\nCalculating treecover...')
       ndvi_tifs = [os.path.join(tdir, f'{interval_id}-ndvi.tif') for interval_id in ids]
       filled_tifs = [os.path.join(tdir, f'{interval_id}-filled.tif') for interval_id in ids]
 

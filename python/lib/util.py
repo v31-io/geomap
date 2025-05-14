@@ -76,7 +76,7 @@ def raster_map_blocks(input_files: list, output_files: list, block_size: int, fn
                                                        template=stack['band_data'])
 
     zarr_file_filled = os.path.join(tdir, 'filled.zarr')
-    print('\nPerforming fill on stacked zarr...')
+    print('\nApplying map_blocks on stacked zarr...')
     stack.to_zarr(zarr_file_filled, mode='w')
     shutil.rmtree(zarr_file_stacked)
     

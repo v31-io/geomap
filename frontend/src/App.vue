@@ -11,16 +11,6 @@ const center = ref([0, 0])
 const zoom = ref(2)
 const projection = ref("EPSG:4326")
 
-const red = ["band", 1]
-const green = ["band", 2]
-const blue = ["band", 3]
-const alpha = ['band', 4]
-
-const trueColor = ref({
-  color: ["array", red, green, blue, alpha],
-  gamma: 1.1,
-})
-
 const date = ref(new Date().toISOString().split('T')[0])
 const meta = ref({})
 
@@ -103,17 +93,20 @@ fetchData()
       <Sources.OlSourceOsm/>
     </Layers.OlWebglTileLayer>
     
+    <!-- Data Layers -->
     <Layers.OlLayerGroup v-for="(layer) in layers" :key="layer" :title="layer['name']">
       <Layers.OlWebglTileLayer v-for="(url) in urls[layer['layer']]" :key="url" 
-        :displayInLayerSwitcher="false" :zIndex="1002" :style="trueColor" :preload="Infinity" :transition="true">
-        <Sources.OlSourceGeoTiff :sources="[{url: [url]}]" :transparent="true"/>
+        :displayInLayerSwitcher="false" :zIndex="1002" :style="layer['style']" :preload="Infinity" :transition="true">
+        <Sources.OlSourceGeoTiff :sources="[{url: [url]}]" :transparent="true" :normalize="layer['normalize']"/>
       </Layers.OlWebglTileLayer>
     </Layers.OlLayerGroup>
 
+    <!-- GLAD ARD Tile Grid Map -->
     <Layers.OlVectorLayer v-if="meta.hasOwnProperty('alltiles')" :zIndex="1003" title="GLAD ARD Tiles" :visible="false">
       <Sources.OlSourceVector :features="new GeoJSON().readFeatures(meta['alltiles'])" format="geojson"/>
     </Layers.OlVectorLayer>
 
+    <!-- Click on GLAD ARD for Tile ID -->
     <Interactions.OlInteractionSelect @select="featureSelected">
       <Styles.OlStyle>
         <Styles.OlStyleText :text="selectedFeatureText" font="20px sans-serif">

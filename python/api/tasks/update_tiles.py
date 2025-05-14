@@ -16,11 +16,25 @@ def update_tiles():
     # Layer on Open Layer UI Map appear in reversed order
     'layers': [
       {
-      'name': 'True Color Image',
-      'layer': 'rgba'
-      },{
-      'name': 'Tree Cover',
-      'layer': 'treecover'
+        'name': 'True Color Image',
+        'layer': 'rgba',
+        'bands': 4,
+        'style': {
+          # RGBA
+          'color': ["array", ['band', 1], ['band', 2], ['band', 3], ['band', 4]],
+          'gamma': 1.1
+        },
+        'normalize': True
+      },
+      {
+        'name': 'Tree Cover',
+        'layer': 'treecover',
+        'bands': 1,
+        'style': {
+          # Tree cover is green and non-treecover is red
+          'color': ["interpolate", ["linear"], ["band", 1], 0, [20, 90, 50], 1, "red"]
+        },
+        'normalize': False
       }
     ],
     'tiles': glad.list_tiles(full=True),

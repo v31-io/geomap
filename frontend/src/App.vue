@@ -48,14 +48,6 @@ const urls = computed((previous) => {
           }
           _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`)
         })
-        // Filter to remove 404s
-        _urls[layer['layer']] = _urls[layer['layer']].filter(async (url) => {
-          try {
-            return (await axios.head(url)).status == 200
-          } catch {
-            return false
-          }
-        })
       })
       return _urls
     } else {

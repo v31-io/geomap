@@ -66,4 +66,4 @@ Watch and local development parameters are enabled in the `docker-compose.overri
   > 
   > Remote Sens. 2020, 12, 426; doi:10.3390/rs12030426.
 
-- Lakshya Datta ([![Linkedin](https://i.sstatic.net/gVE0j.png) LinkedIn](https://www.linkedin.com/in/lakshyavdatta) [![GitHub](https://i.sstatic.net/tskMh.png) GitHub](https://github.com/Rockets2Desighee)) for providing insights into the world of geospatial sorcery & satellite imagery.
+- Lakshya Vaibhav Datta ([![Linkedin](https://i.sstatic.net/gVE0j.png) LinkedIn](https://www.linkedin.com/in/lakshyavdatta) [![GitHub](https://i.sstatic.net/tskMh.png) GitHub](https://github.com/Rockets2Desighee)) for providing insights into the world of geospatial sorcery & satellite imagery.

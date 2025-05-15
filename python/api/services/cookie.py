@@ -14,6 +14,5 @@ class SessionIDCookieMiddleware(BaseHTTPMiddleware):
     if "sessionID" not in request.cookies:
       session_id = str(int(random() * 10e12))
       response.set_cookie(key="sessionID", value=session_id, max_age=900, httponly=True)
-      print(f"Cookie {session_id} created")
 
     return response

@@ -35,17 +35,22 @@ def convert_to_cog_rio(input_geotiff: str, output_cog: str, add_mask: bool = Tru
   except Exception as e:
     print(f"Error converting {input_geotiff} to {output_cog}: {e}")
 
-def fill_geotiff_stack(input_files: list, output_files: list, block_size: int, last_band_mask: bool = False, no_data_value = np.nan):
+def raster_map_blocks(input_files: list, output_files: list, block_size: int, fn_map_blocks: callable, 
+                      no_data_value = np.nan, last_band_mask: tuple = None):
   '''
-    Impute no data for a stack of TIFs using ffill & bfill.
+    Convert a stack of raster GeoTIFFs to Xarray Dataset and apply a map_blocks function. Then convert back to GeoTIFF files
+    for output.
 
     Parameters
     ----------
     - input_files: list - List of input file paths
     - output_files: list - List of output file paths
     - block_size: int - Block size of x & y dimension. Used to optimize for memory
-    - last_band_mask: bool optional - If the last band is a mask band. It will be re-calculated with mask values of 0 & 255
+    - fn_map_blocks: function - Function to apply map_blocks. Signature is (block, dim) -> (block)
     - no_data_value: optional - If the no data value to impute is other than NaN
+    - last_band_mask: tuple optional - If the last band is a mask band then it may need to be re-computed after map_blocks is run.
+        Pass a tuple of `(value where no_data_value, value where no no_data_value)`. Eg for rgba int dtype it can be (0, 255); for 
+        single band float it can be (False, True)
   '''
   with TemporaryDirectory() as tdir:
     print('Stacking tifs in Xarray...')
@@ -58,42 +63,33 @@ def fill_geotiff_stack(input_files: list, output_files: list, block_size: int, l
       stack_paths.append(zarr_file_temp)
 
     print('\nWriting to stacked zarr...')
-    stack = xr.concat([xr.open_dataset(file, mask_and_scale=False) for file in stack_paths], dim='index')
+    stack = xr.concat([xr.open_zarr(file, mask_and_scale=False) for file in stack_paths], dim='index')
     stack = stack.chunk({'index': len(input_files), 'band': 1, 'x': block_size, 'y': block_size})
-    zarr_file_stacked = os.path.join(tdir, 'temp.zarr')
+    zarr_file_stacked = os.path.join(tdir, 'stacked.zarr')
     stack.to_zarr(zarr_file_stacked, mode='w', encoding={"band_data": {"fill_value": no_data_value}})
-    stack = xr.open_zarr(zarr_file_stacked, mask_and_scale=False)
 
     for file in stack_paths:
       shutil.rmtree(file)
 
-    def fill_stack(block, dim_fill):
-      original_dtype = block.dtype
-      masked_block = block.where(block != no_data_value, np.nan)
-      filled_block = masked_block.ffill(dim=dim_fill).bfill(dim=dim_fill)
-      block = filled_block.where(~np.isnan(filled_block), no_data_value)
-      block = block.astype(original_dtype)
-    
-      return block
-
-    stack['band_data'] = stack['band_data'].map_blocks(fill_stack, kwargs={'dim_fill': 'index'}, 
+    stack = xr.open_zarr(zarr_file_stacked, mask_and_scale=False)
+    stack['band_data'] = stack['band_data'].map_blocks(fn_map_blocks, kwargs={'dim': 'index'}, 
                                                        template=stack['band_data'])
 
-    zarr_file_filled = os.path.join(tdir, 'temp2.zarr')
-    print('\nPerforming fill on stacked zarr...')
+    zarr_file_filled = os.path.join(tdir, 'filled.zarr')
+    print('\nApplying map_blocks on stacked zarr...')
     stack.to_zarr(zarr_file_filled, mode='w')
-
-    stack = xr.open_zarr(zarr_file_filled, mask_and_scale=False)['band_data']
     shutil.rmtree(zarr_file_stacked)
+    
+    stack = xr.open_zarr(zarr_file_filled, mask_and_scale=False)['band_data']
 
     print('\nWriting to tifs...')
     for index in tqdm(stack['index'].values):
       with rasterio.open(input_files[index], mode='r') as src:
         bands = stack.isel(index=index).values
-        if last_band_mask:
+        if last_band_mask is not None:
           num_bands = bands.shape[0] - 1
           mask = np.all(bands[0:num_bands] == no_data_value, axis=0)
-          bands[num_bands] = np.where(mask, 0, 255)
+          bands[num_bands] = np.where(mask, last_band_mask[0], last_band_mask[1])
 
         new_meta = src.meta.copy()
 

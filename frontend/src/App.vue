@@ -23,36 +23,44 @@ const layers = computed(() => {
 })
 
 const urls = computed((previous) => {
-  if (meta.value.hasOwnProperty('tiles')) {
-    const _urls = {}
-    const tiles = meta.value['tiles']
-    const baseUrl = meta.value['base_url']
+    if (meta.value.hasOwnProperty('tiles')) {
+      const _urls = {}
+      const tiles = meta.value['tiles']
+      const baseUrl = meta.value['base_url']
 
-    // Ignore update
+      // Ignore update
     if (new Date(date.value) == NaN || new Date(date.value) < new Date('1997-01-01')) {
-      return previous
-    }
+        return previous
+      }
 
-    layers.value.forEach((layer) => {
-      _urls[layer['layer']] = []
-      Object.keys(tiles).forEach(tile => {
-        let id = tiles[tile][tiles[tile].length - 1]['ID']
-        // Determine closest id to selected date
+      layers.value.forEach((layer) => {
+        _urls[layer['layer']] = []
+        Object.keys(tiles).forEach(tile => {
+          let id = tiles[tile][tiles[tile].length - 1]['ID']
+          // Determine closest id to selected date
         if (date.value) {
-          const img = tiles[tile].find(img => {
+            const img = tiles[tile].find(img => {
             return new Date(img['Date']) >= new Date(date.value)
-          })
-          if (img) {
-            id = img['ID']
+            })
+            if (img) {
+              id = img['ID']
+            }
           }
-        }
-        _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`)
+          _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`)
+        })
+        // Filter to remove 404s
+        _urls[layer['layer']] = _urls[layer['layer']].filter(async (url) => {
+          try {
+            return (await axios.head(url)).status == 200
+          } catch {
+            return false
+          }
+        })
       })
-    })
-    return _urls
-  } else {
-    return {}
-  }
+      return _urls
+    } else {
+      return {}
+    }
 })
 
 function showAttributions() {
@@ -67,7 +75,7 @@ const featureSelected = (event) => {
     if (tileID != selectedFeatureText.value)
       selectedFeatureText.value = tileID
   }
-};
+}
 
 async function fetchData() {
   await axios.head('/api')
@@ -83,7 +91,7 @@ fetchData()
   <button type="button" class="logout-button overlay" @click="keycloak.logout()">Logout</button>
   <button v-if="meta.hasOwnProperty('attributions')" type="button" class="attribution-button overlay" 
     @click="showAttributions()">Info</button>
-  <input type="date" class="date-picker overlay" v-model="date" min="1997-01-01" max="2030-01-01"/>
+  <input type="date" class="date-picker overlay" v-if="meta.hasOwnProperty('alltiles')" v-model="date" min="1997-01-01" max="2030-01-01"/>
   <Map.OlMap class="map">
     <Map.OlView ref="view" :center="center" :zoom="zoom" :projection="projection"/>
 

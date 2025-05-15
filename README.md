@@ -23,6 +23,7 @@ This is a docker compose application with different components -
 The Jupyter notebook [treecover-analysis.ipynb](treecover-analysis.ipynb) shows how the Treecover layer is computed using NDVI.
 - NDVI is computed as (NIR-Red)/(NIR+Red)
 - Missing values are imputed with forward fill and back fill along the time axis and outliers are clipped to known NDVI values = (-1, 1).
+Missing values are due to the qf mask provided by GLAD ARD. This is to remove any bad quality data/cloud data.
 - NDVI values are smoothened to account for seasonal/temporal variance along the time axis (3 periods).
 - If the differnce between NDVI for a single time point is greater than a known value (0.25) (max NDVI along time axis - current NDVI), then this usually indicates that trees have been cut down. This check is also clipped to a lower bound of known NDVI value for tree (0.7).
 - If a pixel is marked as tree loss then it will be marked as tree loss for all future time points unless re-growth (tree) is detected for 3 periods.
@@ -63,3 +64,5 @@ Watch and local development parameters are enabled in the `docker-compose.overri
   > Landsat analysis ready data for global land cover and land cover change mapping.
   > 
   > Remote Sens. 2020, 12, 426; doi:10.3390/rs12030426.
+
+- Lakshya Datta ([![Linkedin](https://i.sstatic.net/gVE0j.png) LinkedIn](https://www.linkedin.com/in/lakshyavdatta) [![GitHub](https://i.sstatic.net/tskMh.png) GitHub](https://github.com/Rockets2Desighee)) for providing insights into the world of geospatial sorcery & satellite imagery.

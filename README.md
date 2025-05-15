@@ -40,6 +40,7 @@ The treecover (green = trees, red = no tress) can be seen for different dates -
 The TCI layer can also be seen for different dates - 
 ![](docs/2025%20tci.png)
 ![](docs/2000%20tci.png)
+*The TCIs are also imputed via forward fill & back fill along time axis.*
 
 The GLAD ARD Grid can also be overlayed to see the Tile IDs on click - 
 ![](docs/glad%20tile%20grid.png)

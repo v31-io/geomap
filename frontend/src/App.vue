@@ -19,7 +19,7 @@ const layers = computed(() => {
     return meta.value['layers']
   } else {
     return []
-  } 
+  }
 })
 
 const urls = computed((previous) => {
@@ -29,7 +29,7 @@ const urls = computed((previous) => {
     const baseUrl = meta.value['base_url']
 
     // Ignore update
-  if (new Date(date.value) == NaN || new Date(date.value) < new Date('1997-01-01')) {
+    if (new Date(date.value) == NaN || new Date(date.value) < new Date('1997-01-01')) {
       return previous
     }
 
@@ -38,9 +38,9 @@ const urls = computed((previous) => {
       Object.keys(tiles).forEach(tile => {
         let id = tiles[tile][tiles[tile].length - 1]['ID']
         // Determine closest id to selected date
-      if (date.value) {
+        if (date.value) {
           const img = tiles[tile].find(img => {
-          return new Date(img['Date']) >= new Date(date.value)
+            return new Date(img['Date']) >= new Date(date.value)
           })
           if (img) {
             id = img['ID']
@@ -81,29 +81,31 @@ fetchData()
 
 <template>
   <button type="button" class="logout-button overlay" @click="keycloak.logout()">Logout</button>
-  <button v-if="meta.hasOwnProperty('attributions')" type="button" class="attribution-button overlay" 
+  <button v-if="meta.hasOwnProperty('attributions')" type="button" class="attribution-button overlay"
     @click="showAttributions()">Info</button>
-  <input type="date" class="date-picker overlay" v-if="meta.hasOwnProperty('alltiles')" v-model="date" min="1997-01-01" max="2030-01-01"/>
+  <input type="date" class="date-picker overlay" v-if="meta.hasOwnProperty('alltiles')" v-model="date" min="1997-01-01"
+    max="2030-01-01" />
   <Map.OlMap class="map">
-    <Map.OlView ref="view" :center="center" :zoom="zoom" :projection="projection"/>
+    <Map.OlView ref="view" :center="center" :zoom="zoom" :projection="projection" />
 
-    <MapControls.OlLayerswitcherControl v-if="layers.length > 0" :reordering="false"/>
+    <MapControls.OlLayerswitcherControl v-if="layers.length > 0" :reordering="false" />
 
     <Layers.OlWebglTileLayer :zIndex="1001" :displayInLayerSwitcher="false">
-      <Sources.OlSourceOsm/>
+      <Sources.OlSourceOsm />
     </Layers.OlWebglTileLayer>
-    
+
     <!-- Data Layers -->
     <Layers.OlLayerGroup v-for="(layer) in layers" :key="layer" :title="layer['name']" :visible="layer['visible']">
-      <Layers.OlWebglTileLayer v-for="(url) in urls[layer['layer']]" :key="url"
-        :displayInLayerSwitcher="false" :zIndex="1002" :style="layer['style']" :preload="Infinity" :transition="true">
-        <Sources.OlSourceGeoTiff :sources="[{url: [url], nodata: NaN}]" :transparent="true" :normalize="layer['normalize']"/>
+      <Layers.OlWebglTileLayer v-for="(url) in urls[layer['layer']]" :key="url" :displayInLayerSwitcher="false"
+        :zIndex="1002" :style="layer['style']" :preload="Infinity" :transition="true">
+        <Sources.OlSourceGeoTiff :sources="[{ url: [url], nodata: NaN }]" :transparent="true"
+          :normalize="layer['normalize']" />
       </Layers.OlWebglTileLayer>
     </Layers.OlLayerGroup>
 
     <!-- GLAD ARD Tile Grid Map -->
     <Layers.OlVectorLayer v-if="meta.hasOwnProperty('alltiles')" :zIndex="1003" title="GLAD ARD Tiles" :visible="false">
-      <Sources.OlSourceVector :features="new GeoJSON().readFeatures(meta['alltiles'])" format="geojson"/>
+      <Sources.OlSourceVector :features="new GeoJSON().readFeatures(meta['alltiles'])" format="geojson" />
     </Layers.OlVectorLayer>
 
     <!-- Click on GLAD ARD for Tile ID -->
@@ -120,10 +122,10 @@ fetchData()
 
 <style>
 .map {
-  position: fixed; 
-  top: 0; 
-  left: 0; 
-  width: 100%; 
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: 100%;
 }
 
@@ -143,9 +145,9 @@ fetchData()
 }
 
 .overlay {
-  position: absolute; 
+  position: absolute;
   z-index: 1000;
-  background: white; 
+  background: white;
   padding: 5px;
   border: 1px solid #ccc;
   border-radius: 4px;

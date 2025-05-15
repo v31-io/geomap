@@ -17,6 +17,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from .db.InvalidImage import InvalidImage
+from .db.ProcessTreecoverParams import ProcessTreecoverParams
 from .util import convert_to_cog_rio, raster_map_blocks
 
 
@@ -294,6 +295,16 @@ class GLAD():
       - ndvi_diff_cut_trees: float default=0.25 - The difference in NDVI for a tree which has been cut
       - ndvi_tree_lower_bound: float default=0.7 - Lower bound of what a tree's NDVI would be in a dense forest
     '''
+    # Override parameters if set
+    q = ProcessTreecoverParams.select().where(ProcessTreecoverParams.tile_id == tile_id)
+    if len(q) > 0:
+      print(f'Config paramters detected. Overriding defaults...')
+      ndvi_diff_cut_trees = q[0].ndvi_diff_cut_trees
+      ndvi_tree_lower_bound = q[0].ndvi_tree_lower_bound
+
+    print('Parameter ndvi_diff_cut_trees:', ndvi_diff_cut_trees)
+    print('Parameter ndvi_tree_lower_bound:', ndvi_tree_lower_bound)
+      
     ids = self.list_images(tile_id)
 
     print(f'Processing Treecover images for Tile ID {tile_id}...')

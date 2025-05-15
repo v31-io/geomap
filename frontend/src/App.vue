@@ -23,36 +23,36 @@ const layers = computed(() => {
 })
 
 const urls = computed((previous) => {
-    if (meta.value.hasOwnProperty('tiles')) {
-      const _urls = {}
-      const tiles = meta.value['tiles']
-      const baseUrl = meta.value['base_url']
+  if (meta.value.hasOwnProperty('tiles')) {
+    const _urls = {}
+    const tiles = meta.value['tiles']
+    const baseUrl = meta.value['base_url']
 
-      // Ignore update
-    if (new Date(date.value) == NaN || new Date(date.value) < new Date('1997-01-01')) {
-        return previous
-      }
-
-      layers.value.forEach((layer) => {
-        _urls[layer['layer']] = []
-        Object.keys(tiles).forEach(tile => {
-          let id = tiles[tile][tiles[tile].length - 1]['ID']
-          // Determine closest id to selected date
-        if (date.value) {
-            const img = tiles[tile].find(img => {
-            return new Date(img['Date']) >= new Date(date.value)
-            })
-            if (img) {
-              id = img['ID']
-            }
-          }
-          _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`)
-        })
-      })
-      return _urls
-    } else {
-      return {}
+    // Ignore update
+  if (new Date(date.value) == NaN || new Date(date.value) < new Date('1997-01-01')) {
+      return previous
     }
+
+    layers.value.forEach((layer) => {
+      _urls[layer['layer']] = []
+      Object.keys(tiles).forEach(tile => {
+        let id = tiles[tile][tiles[tile].length - 1]['ID']
+        // Determine closest id to selected date
+      if (date.value) {
+          const img = tiles[tile].find(img => {
+          return new Date(img['Date']) >= new Date(date.value)
+          })
+          if (img) {
+            id = img['ID']
+          }
+        }
+        _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`)
+      })
+    })
+    return _urls
+  } else {
+    return {}
+  }
 })
 
 function showAttributions() {

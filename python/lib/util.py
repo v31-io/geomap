@@ -63,7 +63,7 @@ def raster_map_blocks(input_files: list, output_files: list, block_size: int, fn
       stack_paths.append(zarr_file_temp)
 
     print('\nWriting to stacked zarr...')
-    stack = xr.concat([xr.open_dataset(file, mask_and_scale=False) for file in stack_paths], dim='index')
+    stack = xr.concat([xr.open_zarr(file, mask_and_scale=False) for file in stack_paths], dim='index')
     stack = stack.chunk({'index': len(input_files), 'band': 1, 'x': block_size, 'y': block_size})
     zarr_file_stacked = os.path.join(tdir, 'stacked.zarr')
     stack.to_zarr(zarr_file_stacked, mode='w', encoding={"band_data": {"fill_value": no_data_value}})

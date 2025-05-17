@@ -5,7 +5,7 @@ from fastapi import HTTPException, Header
 from keycloak import KeycloakOpenID
 
 
-client_id = 'geomap'
+client_id = os.environ["KEYCLOAK_CLIENT_ID"]
 keycloak_openid = KeycloakOpenID(
     server_url=f'{os.environ["KEYCLOAK_URL"]}/auth/',
     realm_name='default',

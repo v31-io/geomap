@@ -12,7 +12,7 @@ app.use(VueKeycloak, {
   config: {
     url: import.meta.env.VITE_KEYCLOAK_URL,
     realm: 'default',
-    clientId: 'geomap'
+    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID
   },
   onInitError: (error) => console.error('Keycloak initialization error:', error),
   onReady: (keycloak) => {

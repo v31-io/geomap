@@ -25,7 +25,8 @@ def update_tiles():
           'color': ["array", ['band', 1], ['band', 2], ['band', 3], ['band', 4]],
           'gamma': 1.1
         },
-        'normalize': True
+        'min': 0,
+        'max': 255
       },
       {
         'name': 'Tree Cover',
@@ -42,7 +43,8 @@ def update_tiles():
             ["interpolate", ["linear"], ["band", 1], 0, [20, 90, 50], 1, [250, 0, 0]]
           ]
         },
-        'normalize': False
+        'min': 0,
+        'max': 1
       }
     ],
     'tiles': glad.list_tiles(full=True),

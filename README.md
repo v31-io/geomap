@@ -33,7 +33,7 @@ The values for NDVI difference for tree and cut tree (0.25) & and the NDVI lower
 
 ## Screenshots
 
-The treecover (green = trees, red = no tress) can be seen for different dates -
+The treecover (green = trees, red = no trees) can be seen for different dates -
 ![](docs/2025%20treecover.png)
 ![](docs/2000%20treecover.png)
 

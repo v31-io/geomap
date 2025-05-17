@@ -80,7 +80,6 @@ fetchData()
 </script>
 
 <template>
-  <button type="button" class="logout-button overlay" @click="keycloak.logout()">Logout</button>
   <button v-if="meta.hasOwnProperty('attributions')" type="button" class="attribution-button overlay"
     @click="showAttributions()">Info</button>
   <input type="date" class="date-picker overlay" v-if="meta.hasOwnProperty('alltiles')" v-model="date" min="1997-01-01"
@@ -132,11 +131,6 @@ fetchData()
 
 .attribution-button {
   bottom: 8px;
-  right: 8px;
-}
-
-.logout-button {
-  top: 8px;
   right: 8px;
 }
 

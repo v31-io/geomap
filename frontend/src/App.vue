@@ -89,6 +89,7 @@ fetchData()
     <Map.OlView ref="view" :center="center" :zoom="zoom" :projection="projection" />
 
     <MapControls.OlLayerswitcherControl v-if="layers.length > 0" :reordering="false" />
+    <MapControls.OlRotateControl />
 
     <Layers.OlWebglTileLayer :zIndex="1001" :displayInLayerSwitcher="false">
       <Sources.OlSourceOsm />

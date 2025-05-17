@@ -39,7 +39,7 @@ def update_tiles():
             ['==', ['band', 2], 0],
             [0, 0, 0, 0],
             # Tree cover is green and non-treecover is red
-            ["interpolate", ["linear"], ["band", 1], 0, [20, 90, 50], 1, "red"]
+            ["interpolate", ["linear"], ["band", 1], 0, [20, 90, 50], 1, [250, 0, 0]]
           ]
         },
         'normalize': False

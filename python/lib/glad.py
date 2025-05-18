@@ -465,14 +465,32 @@ class GLAD():
 
     return tiles
   
+  def delete_tile(self, tile_id: str):
+    '''
+      Delete all images for a Tile ID.
+
+      Parameters
+      ----------
+      - tile_id str: Tile ID in the format '054W_03S'
+    '''
+    s3_key = f'{self._s3_root_path}/{tile_id}/'
+    
+    try:
+      keys = self._s3.list_objects_v2(Bucket=self._s3_bucket, Prefix=s3_key)['Contents']
+      keys = {'Objects': [{'Key': key['Key']} for key in keys]}
+      self._s3.delete_objects(Bucket=self._s3_bucket, Delete=keys)
+    
+    except Exception as e:
+      pass
+
   def delete_image(self, tile_id: str, interval_id: int):
     '''
-    Delete the image for a Tile ID and Interval ID.
+      Delete the image for a Tile ID and Interval ID.
 
-    Parameters
-    ----------
-    - tile_id str: Tile ID in the format '054W_03S'
-    - interval_id int: Interval ID
+      Parameters
+      ----------
+      - tile_id str: Tile ID in the format '054W_03S'
+      - interval_id int: Interval ID
     '''
     s3_key = f'{self._s3_root_path}/{tile_id}/{interval_id}/'
     

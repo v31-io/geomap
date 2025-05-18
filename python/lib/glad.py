@@ -17,6 +17,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from .db.InvalidImage import InvalidImage
+from .db.IngestParams import IngestParams
 from .db.ProcessTreecoverParams import ProcessTreecoverParams
 from .util import convert_to_cog_rio, raster_map_blocks
 
@@ -109,6 +110,14 @@ class GLAD():
     ids = ids[~(np.isnan(ids))].astype(int).tolist()
     
     if tile_id is not None:
+      # Delete any invalid IDs config which may have been skipped due to a higher valid_image_pixels value earlier
+      q = IngestParams.select().where(IngestParams.tile_id == tile_id)
+      if len(q) > 0:
+        print(f'Found Ingest config valid_image_pixels: {q[0].valid_image_pixels}. Cleaning Invalid IDs config above this...')
+        q = InvalidImage.delete().where(InvalidImage.tile_id == tile_id, 
+                                        InvalidImage.valid_pixel_percentage >= q[0].valid_image_pixels)
+        q.execute()
+
       # Filter out invalid IDs
       q = InvalidImage.select(InvalidImage.interval_id).where(InvalidImage.tile_id == tile_id)
       invalid_ids = [r.interval_id for r in q]
@@ -140,6 +149,16 @@ class GLAD():
         q[0].delete_instance()
       else:
         raise Exception(f'Image {tile_id}:{interval_id} in invalid. {q[0].reason}')
+      
+    # Override parameters if set
+    q = IngestParams.select().where(IngestParams.tile_id == tile_id)
+    if len(q) > 0:
+      print(f'Config parameters detected. Overriding defaults...')
+      valid_image_pixels = q[0].valid_image_pixels
+    else:
+      valid_image_pixels = self._valid_image_pixels
+
+    print('Parameter valid_image_pixels:', valid_image_pixels)
 
     try:
       self._s3.get_object(Bucket=self._s3_bucket, Key=s3_key)
@@ -175,7 +194,7 @@ class GLAD():
             qf = dataset.read(8)
             mask = np.logical_or(qf == 1, qf == 15) 
             valid_pixel_percentage = mask.sum() / mask.size
-            if valid_pixel_percentage < self._valid_image_pixels:
+            if valid_pixel_percentage < valid_image_pixels:
               raise Exception(f'Valid pixels in image are below threshold: {valid_pixel_percentage}')
             else:
               print(f'Valid pixels in image are above threshold: {valid_pixel_percentage}')
@@ -298,7 +317,7 @@ class GLAD():
     # Override parameters if set
     q = ProcessTreecoverParams.select().where(ProcessTreecoverParams.tile_id == tile_id)
     if len(q) > 0:
-      print(f'Config paramters detected. Overriding defaults...')
+      print(f'Config parameters detected. Overriding defaults...')
       ndvi_diff_cut_trees = q[0].ndvi_diff_cut_trees
       ndvi_tree_lower_bound = q[0].ndvi_tree_lower_bound
 

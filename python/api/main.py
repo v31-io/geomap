@@ -1,6 +1,6 @@
 import copy
 import uvicorn
-from fastapi import FastAPI, Depends, Query
+from fastapi import FastAPI, Depends, Query, Response, Header
 from fastapi_utils.tasks import repeat_every
 from typing import Optional
 from datetime import datetime
@@ -8,6 +8,7 @@ from datetime import datetime
 from api.services.glad import update_layers, get_meta, filter_dates
 from api.services.keycloak import TokenVerifier
 from api.services.cookie import SessionIDCookieMiddleware
+from api.services.util import generate_etag
 
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -28,8 +29,16 @@ def head_root():
   return {"status": "OK"}
 
 @app.get("/")
-def get_root(_: dict = Depends(TokenVerifier(roles=['access']))):
-  return get_meta()
+def get_root(_: dict = Depends(TokenVerifier(roles=['access'])), 
+             response: Response = None,
+             if_none_match: str | None = Header(default=None)):
+  meta = get_meta()
+  response.headers["ETag"] = generate_etag(meta)
+  
+  if if_none_match == response.headers["ETag"]:
+    return Response(status_code=304)
+  else:
+    return meta
 
 @app.get("/layers")
 def get_geojson(_: dict = Depends(TokenVerifier(roles=['access'])), 

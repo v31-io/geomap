@@ -7,6 +7,9 @@ import GeoJSON from 'ol/format/GeoJSON'
 
 
 const { token } = useKeycloak()
+const api = axios.create({
+  baseURL: '/api', headers: { Authorization: `Bearer ${token}` }
+})
 const center = ref([0, 0])
 const zoom = ref(2)
 const projection = ref("EPSG:4326")
@@ -43,17 +46,13 @@ function isEmpty(obj) {
 }
 
 async function fetchMeta() {
-  const response = await axios.get(`/api/`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
+  const response = await api.get('/')
   meta.value = response.data
   fetchLayers()
 }
 
 async function fetchLayers() {
-  const response = await axios.get(`/api/layers?date=${date.value}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
+  const response = await api.get(`/layers?date=${date.value}`)
   layers.value = response.data.sort((a, b) => a.zlevel - b.zlevel)
 }
 

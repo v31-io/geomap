@@ -1,57 +1,26 @@
 <script setup>
 import axios from "axios"
-import { ref, computed } from "vue"
+import { ref, watch } from "vue"
 import { Map, Layers, Sources, MapControls, Interactions, Styles } from "vue3-openlayers"
 import { useKeycloak } from '@dsb-norge/vue-keycloak-js'
 import GeoJSON from 'ol/format/GeoJSON'
 
 
-const { keycloak, token } = useKeycloak()
+const { token } = useKeycloak()
 const center = ref([0, 0])
 const zoom = ref(2)
 const projection = ref("EPSG:4326")
 
 const date = ref(new Date().toISOString().split('T')[0])
 const meta = ref({})
+const layers = ref({})
 
-const layers = computed(() => {
-  if (meta.value.hasOwnProperty('layers')) {
-    return meta.value['layers']
+watch(date, (newDate) => {
+  // Ignore invalid date
+  if (new Date(newDate) == NaN || new Date(newDate) < new Date('1997-01-01')) {
+    return
   } else {
-    return []
-  }
-})
-
-const urls = computed((previous) => {
-  if (meta.value.hasOwnProperty('tiles')) {
-    const _urls = {}
-    const tiles = meta.value['tiles']
-    const baseUrl = meta.value['base_url']
-
-    // Ignore update
-    if (new Date(date.value) == NaN || new Date(date.value) < new Date('1997-01-01')) {
-      return previous
-    }
-
-    layers.value.forEach((layer) => {
-      _urls[layer['layer']] = []
-      Object.keys(tiles).forEach(tile => {
-        let id = tiles[tile][tiles[tile].length - 1]['ID']
-        // Determine closest id to selected date
-        if (date.value) {
-          const img = tiles[tile].find(img => {
-            return new Date(img['Date']) >= new Date(date.value)
-          })
-          if (img) {
-            id = img['ID']
-          }
-        }
-        _urls[layer['layer']].push(`${baseUrl}/${tile}/${id}/${layer['layer']}.tif`)
-      })
-    })
-    return _urls
-  } else {
-    return {}
+    fetchLayers()
   }
 })
 
@@ -69,20 +38,32 @@ const featureSelected = (event) => {
   }
 }
 
-async function fetchData() {
-  await axios.head('/api')
-  const response = await axios.get('/api', {
+function isEmpty(obj) {
+    return Object.keys(obj).length === 0;
+}
+
+async function fetchMeta() {
+  const response = await axios.get(`/api/`, {
     headers: { Authorization: `Bearer ${token}` }
   })
   meta.value = response.data
+  fetchLayers()
 }
-fetchData()
+
+async function fetchLayers() {
+  const response = await axios.get(`/api/layers?date=${date.value}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  layers.value = response.data.sort((a, b) => a.zlevel - b.zlevel)
+}
+
+fetchMeta()
 </script>
 
 <template>
   <button v-if="meta.hasOwnProperty('attributions')" type="button" class="attribution-button overlay"
     @click="showAttributions()">Info</button>
-  <input type="date" class="date-picker overlay" v-if="meta.hasOwnProperty('alltiles')" v-model="date" min="1997-01-01"
+  <input type="date" class="date-picker overlay" v-if="!isEmpty(layers)" v-model="date" min="1997-01-01"
     max="2030-01-01" />
   <Map.OlMap class="map">
     <Map.OlView ref="view" :center="center" :zoom="zoom" :projection="projection" />
@@ -95,17 +76,17 @@ fetchData()
     </Layers.OlWebglTileLayer>
 
     <!-- Data Layers -->
-    <Layers.OlLayerGroup v-for="(layer) in layers" :key="layer" :title="layer['name']" :visible="layer['visible']">
-      <Layers.OlWebglTileLayer v-for="(url) in urls[layer['layer']]" :key="url" :displayInLayerSwitcher="false"
-        :zIndex="1002" :style="layer['style']" :preload="Infinity" :transition="true">
-        <Sources.OlSourceGeoTiff :sources="[{ url: [url], nodata: NaN, min: layer['min'], max: layer['max'] }]" 
+    <Layers.OlLayerGroup v-for="layer in layers" :key="layer['layer']" :title="layer['name']" :visible="layer['visible']">
+      <Layers.OlWebglTileLayer v-for="tile in layer['tiles']" :key="tile['tile'] + tile['id']" :displayInLayerSwitcher="false"
+        :zIndex="1002" :style="layer['style']" :transition="true">
+        <Sources.OlSourceGeoTiff :sources="[{ url: [tile['url']], nodata: NaN, min: layer['min'], max: layer['max'] }]" 
           :transparent="true" />
       </Layers.OlWebglTileLayer>
     </Layers.OlLayerGroup>
 
     <!-- GLAD ARD Tile Grid Map -->
-    <Layers.OlVectorLayer v-if="meta.hasOwnProperty('alltiles')" :zIndex="1003" title="GLAD ARD Tiles" :visible="false">
-      <Sources.OlSourceVector :features="new GeoJSON().readFeatures(meta['alltiles'])" format="geojson" />
+    <Layers.OlVectorLayer v-if="meta.hasOwnProperty('geojson')" :zIndex="1003" title="GLAD ARD Tiles" :visible="false">
+      <Sources.OlSourceVector :features="new GeoJSON().readFeatures(meta['geojson'])" format="geojson" />
     </Layers.OlVectorLayer>
 
     <!-- Click on GLAD ARD for Tile ID -->

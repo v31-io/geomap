@@ -33,6 +33,7 @@ def get_root(_: dict = Depends(TokenVerifier(roles=['access'])),
              response: Response = None,
              if_none_match: str | None = Header(default=None)):
   meta = get_meta()
+  # Cloudflare tunnel requires string ETag
   response.headers["ETag"] = f'"{generate_etag(meta)}"'
   
   if if_none_match in [response.headers["ETag"], f'W/{response.headers["ETag"]}']:

@@ -35,7 +35,7 @@ def get_root(_: dict = Depends(TokenVerifier(roles=['access'])),
   meta = get_meta()
   response.headers["ETag"] = f'"{generate_etag(meta)}"'
   
-  if if_none_match == response.headers["ETag"]:
+  if if_none_match in [response.headers["ETag"], f'W/{response.headers["ETag"]}']:
     return Response(status_code=304)
   else:
     return meta

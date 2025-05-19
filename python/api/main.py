@@ -33,7 +33,7 @@ def get_root(_: dict = Depends(TokenVerifier(roles=['access'])),
              response: Response = None,
              if_none_match: str | None = Header(default=None)):
   meta = get_meta()
-  response.headers["ETag"] = generate_etag(meta)
+  response.headers["ETag"] = f'"{generate_etag(meta)}"'
   
   if if_none_match == response.headers["ETag"]:
     return Response(status_code=304)
